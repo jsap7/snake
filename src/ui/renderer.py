@@ -106,13 +106,20 @@ class Renderer:
                          (center_x, center_y), food_size // 2)
     
     def draw_path(self, path):
-        if not path or len(path) < 2:
+        if not path:
             return
         
-        # Draw a single continuous line instead of dots
-        points = [(p[0] * CELL_SIZE + CELL_SIZE//2, 
-                  p[1] * CELL_SIZE + CELL_SIZE//2) for p in path]
-        pygame.draw.lines(self.screen, PATH_COLOR, False, points, 2)
+        # Create a semi-transparent surface for the path highlight
+        path_surface = pygame.Surface((CELL_SIZE, CELL_SIZE))
+        path_surface.set_alpha(64)  # Make it semi-transparent
+        # Use a lighter shade of the grid color (GRID_COLOR is 70, 74, 82)
+        path_surface.fill((100, 104, 112))  # Lighter gray that matches the grid theme
+        
+        # Draw highlighted cells for each position in the path
+        for pos in path:
+            x = pos[0] * CELL_SIZE
+            y = pos[1] * CELL_SIZE
+            self.screen.blit(path_surface, (x, y))
     
     def draw_score(self, score, is_ai_mode=False, ai_name=None):
         # Draw score
