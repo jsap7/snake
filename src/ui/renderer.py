@@ -54,16 +54,15 @@ class Renderer:
                 next_segment[1] * CELL_SIZE + CELL_SIZE // 2
             )
             
-            # Calculate color for connector
-            darkness = min(i * 2, 60)  # Even slower darkening
+            # Calculate color for connector (slightly darker than current segment)
+            darkness = min(i * 1.5, 40)  # Reduced darkness factor for smoother gradient
             base_color = SNAKE_BODY_BASE
-            color = (
-                max(base_color[0] - darkness, 0),
-                max(base_color[1] - darkness, 0),
-                max(base_color[2] - darkness, 0)
-            )
+            r = max(SNAKE_HEAD[0] - darkness, base_color[0])
+            g = max(SNAKE_HEAD[1] - darkness, base_color[1])
+            b = max(SNAKE_HEAD[2] - darkness, base_color[2])
+            color = (r, g, b)
             
-            # Draw connecting rectangle
+            # Draw connecting rectangle with same thickness as segments
             pygame.draw.line(
                 self.screen,
                 color,
@@ -72,7 +71,7 @@ class Renderer:
                 CELL_SIZE - (2 * CELL_PADDING)
             )
         
-        # Second pass: draw segments on top
+        # Second pass: draw segments on top with smoother gradient
         for i, segment in enumerate(snake.body):
             x = segment[0] * CELL_SIZE + CELL_PADDING
             y = segment[1] * CELL_SIZE + CELL_PADDING
@@ -81,16 +80,14 @@ class Renderer:
             if i == 0:  # Head
                 color = SNAKE_HEAD
             else:
-                # Calculate darker shade based on position (even smoother gradient)
-                darkness = min(i * 2, 60)  # Reduced darkness factor further
-                base_color = SNAKE_BODY_BASE
-                color = (
-                    max(base_color[0] - darkness, 0),
-                    max(base_color[1] - darkness, 0),
-                    max(base_color[2] - darkness, 0)
-                )
+                # Calculate darker shade based on position (smoother gradient)
+                darkness = min(i * 2, 40)  # Reduced darkness factor for smoother gradient
+                r = max(SNAKE_HEAD[0] - darkness, SNAKE_BODY_BASE[0])
+                g = max(SNAKE_HEAD[1] - darkness, SNAKE_BODY_BASE[1])
+                b = max(SNAKE_HEAD[2] - darkness, SNAKE_BODY_BASE[2])
+                color = (r, g, b)
             
-            # Draw segment with rounded corners (no outline)
+            # Draw segment with rounded corners
             pygame.draw.rect(
                 self.screen,
                 color,
