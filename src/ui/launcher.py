@@ -33,6 +33,28 @@ class GameLauncher:
                            padding=5)
         self.style.configure('TRadiobutton',
                            font=('Helvetica', 14))
+        self.style.layout('TRadiobutton', [
+            ('Radiobutton.padding', {
+                'children': [
+                    ('Radiobutton.indicator', {'side': 'left', 'sticky': ''}),
+                    ('Radiobutton.focus', {
+                        'children': [
+                            ('Radiobutton.label', {'sticky': 'nswe'})
+                        ],
+                        'side': 'left',
+                        'sticky': ''
+                    })
+                ],
+                'sticky': 'nswe'
+            })
+        ])
+        
+        # Configure the indicator colors
+        self.style.map('TRadiobutton',
+                      indicatorcolor=[('selected', '#4CAF50'),  # Green when selected
+                                    ('!selected', '#FFFFFF')],  # White when not selected
+                      indicatorrelief=[('pressed', 'sunken'),
+                                     ('!pressed', 'raised')])
         
         self.create_widgets()
         
@@ -177,4 +199,4 @@ class GameLauncher:
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
         
-        self.root.mainloop() 
+        self.root.mainloop()

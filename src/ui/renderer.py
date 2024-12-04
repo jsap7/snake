@@ -1,10 +1,11 @@
 import pygame
 from src.utils.settings import (
     GRID_SIZE, CELL_SIZE, WINDOW_SIZE, CELL_PADDING,
-    BACKGROUND, GRID_COLOR, SNAKE_HEAD, SNAKE_BODY,
+    BACKGROUND, GRID_COLOR, SNAKE_HEAD, SNAKE_BODY_BASE,
     SNAKE_OUTLINE, FOOD_COLOR, FOOD_OUTLINE,
     WHITE, SCORE_COLOR, GAME_OVER_COLOR,
-    FOOD_SIZE_FACTOR, TITLE_COLOR, START_TEXT_COLOR
+    FOOD_SIZE_FACTOR, TITLE_COLOR, START_TEXT_COLOR,
+    PATH_COLOR
 )
 
 class Renderer:
@@ -37,48 +38,65 @@ class Renderer:
                 1
             )
 
-    def draw_snake_segment(self, rect, color, outline_color, radius=8):
-        """Helper function to draw a snake segment with outline"""
-        pygame.draw.rect(self.screen, outline_color, rect.inflate(4, 4), border_radius=radius)
-        pygame.draw.rect(self.screen, color, rect, border_radius=radius)
-    
     def draw_snake(self, snake):
-        for i, segment in enumerate(snake.body):
-            # Get previous and next segments for connection logic
-            prev_pos = snake.body[i+1] if i < len(snake.body)-1 else None
-            next_pos = snake.body[i-1] if i > 0 else None
+        # First pass: draw connecting rectangles between segments
+        for i in range(len(snake.body) - 1):
+            current = snake.body[i]
+            next_segment = snake.body[i + 1]
             
-            base_rect = pygame.Rect(
-                segment[0] * CELL_SIZE + CELL_PADDING,
-                segment[1] * CELL_SIZE + CELL_PADDING,
-                CELL_SIZE - 2 * CELL_PADDING,
-                CELL_SIZE - 2 * CELL_PADDING
+            # Calculate center points of segments
+            current_center = (
+                current[0] * CELL_SIZE + CELL_SIZE // 2,
+                current[1] * CELL_SIZE + CELL_SIZE // 2
             )
-
-            # Draw connection to next segment if it exists
-            if next_pos:
-                connection_rect = base_rect.copy()
-                if next_pos[0] > segment[0]:  # Moving right
-                    connection_rect.width += CELL_PADDING * 2
-                elif next_pos[0] < segment[0]:  # Moving left
-                    connection_rect.x -= CELL_PADDING * 2
-                    connection_rect.width += CELL_PADDING * 2
-                elif next_pos[1] > segment[1]:  # Moving down
-                    connection_rect.height += CELL_PADDING * 2
-                elif next_pos[1] < segment[1]:  # Moving up
-                    connection_rect.y -= CELL_PADDING * 2
-                    connection_rect.height += CELL_PADDING * 2
-                
-                self.draw_snake_segment(connection_rect, 
-                                     SNAKE_HEAD if i == 0 else SNAKE_BODY,
-                                     SNAKE_OUTLINE,
-                                     radius=10 if i == 0 else 6)
-
-            # Draw the main segment
+            next_center = (
+                next_segment[0] * CELL_SIZE + CELL_SIZE // 2,
+                next_segment[1] * CELL_SIZE + CELL_SIZE // 2
+            )
+            
+            # Calculate color for connector
+            darkness = min(i * 2, 60)  # Even slower darkening
+            base_color = SNAKE_BODY_BASE
+            color = (
+                max(base_color[0] - darkness, 0),
+                max(base_color[1] - darkness, 0),
+                max(base_color[2] - darkness, 0)
+            )
+            
+            # Draw connecting rectangle
+            pygame.draw.line(
+                self.screen,
+                color,
+                current_center,
+                next_center,
+                CELL_SIZE - (2 * CELL_PADDING)
+            )
+        
+        # Second pass: draw segments on top
+        for i, segment in enumerate(snake.body):
+            x = segment[0] * CELL_SIZE + CELL_PADDING
+            y = segment[1] * CELL_SIZE + CELL_PADDING
+            segment_size = CELL_SIZE - (2 * CELL_PADDING)
+            
             if i == 0:  # Head
-                self.draw_snake_segment(base_rect, SNAKE_HEAD, SNAKE_OUTLINE, radius=12)
-            else:  # Body
-                self.draw_snake_segment(base_rect, SNAKE_BODY, SNAKE_OUTLINE, radius=8)
+                color = SNAKE_HEAD
+            else:
+                # Calculate darker shade based on position (even smoother gradient)
+                darkness = min(i * 2, 60)  # Reduced darkness factor further
+                base_color = SNAKE_BODY_BASE
+                color = (
+                    max(base_color[0] - darkness, 0),
+                    max(base_color[1] - darkness, 0),
+                    max(base_color[2] - darkness, 0)
+                )
+            
+            # Draw segment with rounded corners (no outline)
+            pygame.draw.rect(
+                self.screen,
+                color,
+                (x, y, segment_size, segment_size),
+                border_radius=8
+            )
     
     def draw_food(self, food):
         food_size = int(CELL_SIZE * FOOD_SIZE_FACTOR)
@@ -91,34 +109,13 @@ class Renderer:
                          (center_x, center_y), food_size // 2)
     
     def draw_path(self, path):
-        if not path:
+        if not path or len(path) < 2:
             return
         
-        # Create a surface for semi-transparent path visualization
-        path_surface = pygame.Surface((WINDOW_SIZE, WINDOW_SIZE), pygame.SRCALPHA)
-        
-        # Draw path lines first (so they appear under the dots)
-        for i in range(len(path) - 1):
-            start_pos = (
-                path[i][0] * CELL_SIZE + CELL_SIZE // 2,
-                path[i][1] * CELL_SIZE + CELL_SIZE // 2
-            )
-            end_pos = (
-                path[i + 1][0] * CELL_SIZE + CELL_SIZE // 2,
-                path[i + 1][1] * CELL_SIZE + CELL_SIZE // 2
-            )
-            pygame.draw.line(path_surface, self.PATH_LINE, start_pos, end_pos, 3)
-        
-        # Draw path dots
-        for pos in path:
-            center = (
-                pos[0] * CELL_SIZE + CELL_SIZE // 2,
-                pos[1] * CELL_SIZE + CELL_SIZE // 2
-            )
-            pygame.draw.circle(path_surface, self.PATH_DOT, center, CELL_SIZE // 4)
-        
-        # Blit the path surface onto the main screen
-        self.screen.blit(path_surface, (0, 0))
+        # Draw a single continuous line instead of dots
+        points = [(p[0] * CELL_SIZE + CELL_SIZE//2, 
+                  p[1] * CELL_SIZE + CELL_SIZE//2) for p in path]
+        pygame.draw.lines(self.screen, PATH_COLOR, False, points, 2)
     
     def draw_score(self, score, is_ai_mode=False, ai_name=None):
         # Draw score
