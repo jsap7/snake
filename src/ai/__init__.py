@@ -5,6 +5,9 @@ from .advanced_hamiltonian import AdvancedHamiltonianAI
 from .hybrid import HybridAI
 from .random_walk import RandomWalkAI
 from .greedy import GreedyBestFirstAI
+from .dijkstra import DijkstraAI
+from .wall_follower import WallFollowerAI
+from .smart_hybrid import SmartHybridAI
 
 # Dictionary mapping algorithm names to their classes
 AI_ALGORITHMS = {
@@ -14,5 +17,8 @@ AI_ALGORITHMS = {
     "advanced_hamiltonian": AdvancedHamiltonianAI,
     "hybrid": HybridAI,
     "random": RandomWalkAI,
-    "greedy": GreedyBestFirstAI
+    "greedy": GreedyBestFirstAI,
+    "dijkstra": DijkstraAI,
+    "wall_follower": WallFollowerAI,
+    "smart_hybrid": SmartHybridAI
 }
