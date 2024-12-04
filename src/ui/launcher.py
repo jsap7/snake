@@ -98,7 +98,8 @@ class GameLauncher:
             ("🔄 Advanced Hamiltonian", "advanced_hamiltonian", "Optimized safe path"),
             ("🤖 Hybrid A*/Hamiltonian", "hybrid", "Adaptive strategy switching"),
             ("🔍 DFS Exploration", "dfs", "Depth-first exploration"),
-            ("🎲 Random Walk", "random", "Random valid moves")
+            ("🎲 Random Walk", "random", "Random valid moves"),
+            ("⚡ Greedy Best-First", "greedy", "Always moves towards food")
         ]
         
         for text, value, desc in algorithms:
