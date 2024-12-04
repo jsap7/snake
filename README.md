@@ -13,8 +13,8 @@ A Python implementation of the classic Snake game with multiple AI algorithms an
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/jsap7/snake-ai.git
-cd snake-ai
+git clone https://github.com/jsap7/snake.git
+cd snake
 ```
 
 2. Install dependencies:
