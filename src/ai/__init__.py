@@ -1,14 +1,16 @@
 from .astar import AStarAI
 from .bfs import BFSAI
 from .dfs import DFSAI
-from .hamiltonian import HamiltonianWithShortcutsAI
-from .random_walk import RandomAI
+from .advanced_hamiltonian import AdvancedHamiltonianAI
+from .hybrid import HybridAI
+from .random_walk import RandomWalkAI
 
 # Dictionary mapping algorithm names to their classes
 AI_ALGORITHMS = {
     "astar": AStarAI,
     "bfs": BFSAI,
     "dfs": DFSAI,
-    "hamiltonian": HamiltonianWithShortcutsAI,
-    "random": RandomAI
+    "advanced_hamiltonian": AdvancedHamiltonianAI,
+    "hybrid": HybridAI,
+    "random": RandomWalkAI
 }

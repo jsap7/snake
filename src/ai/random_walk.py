@@ -1,10 +1,10 @@
 from typing import List, Tuple
 import random
-from .base import BaseAI
+from src.ai.base import BaseAI
 
-class RandomAI(BaseAI):
+class RandomWalkAI(BaseAI):
     def __init__(self):
-        super().__init__()
+        super().__init__("random")
         self.name = "Random Walk"
         self.description = "Makes random valid moves"
         self.current_path = []  # For visualization

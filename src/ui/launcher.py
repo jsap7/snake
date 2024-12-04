@@ -7,97 +7,86 @@ class GameLauncher:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Snake Game Launcher")
-        self.root.geometry("500x700")
+        self.root.geometry("500x800")  # Made taller to ensure space for button
         self.root.resizable(False, False)
-        
-        # Configure theme and styles
-        try:
-            self.root.tk.call("source", "src/ui/themes/azure.tcl")
-            self.root.tk.call("set_theme", "dark")
-        except tk.TclError:
-            try:
-                self.root.tk.call("set_theme", "dark")
-            except tk.TclError:
-                pass
+        self.root.configure(bg='#2E2E2E')  # Dark background
         
         # Style configuration
         self.style = ttk.Style()
         self.style.configure('Title.TLabel', 
                            font=('Helvetica', 28, 'bold'),
-                           padding=15)
+                           padding=15,
+                           background='#2E2E2E',
+                           foreground='white')
         self.style.configure('Header.TLabel',
                            font=('Helvetica', 16),
-                           padding=10)
+                           padding=10,
+                           background='#2E2E2E',
+                           foreground='white')
         self.style.configure('Description.TLabel',
                            font=('Helvetica', 12),
-                           padding=5)
+                           padding=5,
+                           background='#2E2E2E',
+                           foreground='white')
         self.style.configure('TRadiobutton',
-                           font=('Helvetica', 14))
-        self.style.layout('TRadiobutton', [
-            ('Radiobutton.padding', {
-                'children': [
-                    ('Radiobutton.indicator', {'side': 'left', 'sticky': ''}),
-                    ('Radiobutton.focus', {
-                        'children': [
-                            ('Radiobutton.label', {'sticky': 'nswe'})
-                        ],
-                        'side': 'left',
-                        'sticky': ''
-                    })
-                ],
-                'sticky': 'nswe'
-            })
-        ])
-        
-        # Configure the indicator colors
-        self.style.map('TRadiobutton',
-                      indicatorcolor=[('selected', '#4CAF50'),  # Green when selected
-                                    ('!selected', '#FFFFFF')],  # White when not selected
-                      indicatorrelief=[('pressed', 'sunken'),
-                                     ('!pressed', 'raised')])
+                           font=('Helvetica', 14),
+                           background='#2E2E2E',
+                           foreground='white')
         
         self.create_widgets()
         
     def create_widgets(self):
         # Main container
-        container = ttk.Frame(self.root)
+        container = tk.Frame(self.root, bg='#2E2E2E')
         container.pack(fill=tk.BOTH, expand=True, padx=30, pady=30)
         
         # Title
-        title_label = ttk.Label(
+        title_label = tk.Label(
             container, 
             text="🐍 Snake Game",
-            style='Title.TLabel'
+            font=('Helvetica', 28, 'bold'),
+            fg='white',
+            bg='#2E2E2E'
         )
         title_label.pack(pady=(0, 30))
         
         # Game Mode Frame
-        mode_frame = ttk.LabelFrame(container, text="Game Mode", padding=15)
+        mode_frame = tk.LabelFrame(container, text="Game Mode", 
+                                 font=('Helvetica', 14),
+                                 fg='white', bg='#2E2E2E',
+                                 padx=15, pady=15)
         mode_frame.pack(fill=tk.X, pady=(0, 20))
         
         self.control_mode = tk.StringVar(value="human")
         
         # Mode Selection
-        ttk.Radiobutton(
+        tk.Radiobutton(
             mode_frame, 
             text="👤 Human",
             variable=self.control_mode,
             value="human",
             command=self.toggle_ai_options,
-            style='TRadiobutton'
+            font=('Helvetica', 14),
+            fg='white', bg='#2E2E2E',
+            selectcolor='#2E2E2E'
         ).pack(side=tk.LEFT, padx=20)
         
-        ttk.Radiobutton(
+        tk.Radiobutton(
             mode_frame, 
             text="🤖 AI",
             variable=self.control_mode,
             value="ai",
             command=self.toggle_ai_options,
-            style='TRadiobutton'
+            font=('Helvetica', 14),
+            fg='white', bg='#2E2E2E',
+            selectcolor='#2E2E2E'
         ).pack(side=tk.LEFT, padx=20)
         
         # AI Algorithm Frame
-        self.ai_frame = ttk.LabelFrame(container, text="AI Algorithm", padding=15)
+        self.ai_frame = tk.LabelFrame(container, text="AI Algorithm",
+                                    font=('Helvetica', 14),
+                                    fg='white', bg='#2E2E2E',
+                                    padx=15, pady=15)
         self.ai_frame.pack(fill=tk.X, pady=(0, 20))
         
         self.algorithm = tk.StringVar(value="astar")
@@ -106,48 +95,57 @@ class GameLauncher:
         algorithms = [
             ("🎯 A* Pathfinding", "astar", "Optimal path finding to food"),
             ("🌊 BFS Pathfinding", "bfs", "Breadth-first search for shortest path"),
-            ("🔄 Hamiltonian + Shortcuts", "hamiltonian", "Safe path with optimizations"),
+            ("🔄 Advanced Hamiltonian", "advanced_hamiltonian", "Optimized safe path"),
+            ("🤖 Hybrid A*/Hamiltonian", "hybrid", "Adaptive strategy switching"),
             ("🔍 DFS Exploration", "dfs", "Depth-first exploration"),
             ("🎲 Random Walk", "random", "Random valid moves")
         ]
         
         for text, value, desc in algorithms:
-            frame = ttk.Frame(self.ai_frame)
+            frame = tk.Frame(self.ai_frame, bg='#2E2E2E')
             frame.pack(fill=tk.X, pady=5)
             
-            radio = ttk.Radiobutton(
+            radio = tk.Radiobutton(
                 frame,
                 text=text,
                 variable=self.algorithm,
                 value=value,
-                style='TRadiobutton'
+                font=('Helvetica', 14),
+                fg='white', bg='#2E2E2E',
+                selectcolor='#2E2E2E'
             )
             radio.pack(side=tk.LEFT)
             self.radio_buttons.append(radio)
             
-            ttk.Label(
+            tk.Label(
                 frame,
                 text=desc,
-                style='Description.TLabel'
+                font=('Helvetica', 12),
+                fg='white', bg='#2E2E2E'
             ).pack(side=tk.LEFT, padx=10)
         
         # Game Speed Frame
-        speed_frame = ttk.LabelFrame(container, text="Game Speed", padding=15)
+        speed_frame = tk.LabelFrame(container, text="Game Speed",
+                                  font=('Helvetica', 14),
+                                  fg='white', bg='#2E2E2E',
+                                  padx=15, pady=15)
         speed_frame.pack(fill=tk.X, pady=(0, 30))
         
         self.speed = tk.IntVar(value=10)
         
-        speed_label = ttk.Label(
+        speed_label = tk.Label(
             speed_frame,
             text="Speed (FPS):",
-            style='Header.TLabel'
+            font=('Helvetica', 16),
+            fg='white', bg='#2E2E2E'
         )
         speed_label.pack(side=tk.LEFT)
         
-        self.fps_label = ttk.Label(
+        self.fps_label = tk.Label(
             speed_frame,
             text="10",
-            style='Header.TLabel'
+            font=('Helvetica', 16),
+            fg='white', bg='#2E2E2E'
         )
         self.fps_label.pack(side=tk.RIGHT)
         
@@ -162,13 +160,20 @@ class GameLauncher:
         speed_scale.pack(fill=tk.X, pady=(10, 0))
         
         # Start Button
-        self.start_button = ttk.Button(
+        self.start_button = tk.Button(
             container,
             text="▶  Start Game",
-            style='Accent.TButton',
-            command=self.start_game
+            font=('Helvetica', 20, 'bold'),
+            bg='#4CAF50',
+            fg='black',
+            activebackground='#45a049',
+            activeforeground='black',
+            relief=tk.RAISED,
+            command=self.start_game,
+            width=20,
+            height=2
         )
-        self.start_button.pack(pady=30)
+        self.start_button.pack(pady=40)
         
         # Initial state
         self.toggle_ai_options()

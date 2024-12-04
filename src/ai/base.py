@@ -2,10 +2,11 @@ from typing import List, Tuple
 from src.utils.settings import GRID_SIZE
 
 class BaseAI:
-    def __init__(self):
-        self.name = "Base AI"
+    def __init__(self, name="Base AI"):
+        self.name = name
         self.description = "Base AI class"
         self.grid_size = GRID_SIZE
+        self.current_path = []  # For visualization
         
     def get_next_move(self, snake_head: Tuple[int, int], food_pos: Tuple[int, int], snake_body: List[Tuple[int, int]]) -> Tuple[int, int]:
         raise NotImplementedError
