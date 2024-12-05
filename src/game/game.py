@@ -1,5 +1,7 @@
 import pygame
 import time
+import logging
+import traceback
 from src.utils.settings import WINDOW_SIZE, FPS, GRID_SIZE
 from src.game.snake import Snake
 from src.game.food import Food
@@ -9,23 +11,25 @@ from src.game.game_state import GameState
 from src.ui.game_stats import GameStats
 
 class Game:
-    def __init__(self, start_with_ai=False, ai_algorithm="astar", speed=10):
-        pygame.init()
-        self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
-        pygame.display.set_caption("Snake Game")
-        self.clock = pygame.time.Clock()
+    def __init__(self, start_with_ai=False, ai_algorithm="astar", speed=10, headless=False):
+        self.headless = headless
+        if not self.headless:
+            pygame.init()
+            self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
+            pygame.display.set_caption("Snake Game")
+            self.clock = pygame.time.Clock()
+            self.renderer = Renderer(self.screen)
         
         # Initialize components
         self.snake = Snake()
         self.food = Food()
         self.input_handler = InputHandler()
-        self.renderer = Renderer(self.screen)
         self.game_state = GameState()
         
         # Game flow control
         self.is_running = True
-        self.is_playing = True  # Set to True for human mode to start immediately
-        self.current_speed = speed  # Use the passed speed parameter
+        self.is_playing = True
+        self.current_speed = speed
         self.is_paused = False
         self.last_update_time = time.time()
         
@@ -34,14 +38,15 @@ class Game:
             self.input_handler.current_ai_name = ai_algorithm
             self.input_handler.set_control_type("ai")
             
-            # Create stats window for AI mode with callbacks
-            self.stats_window = GameStats(
-                self.input_handler.get_current_ai_name(),
-                speed_callback=self.on_speed_change,
-                pause_callback=self.on_pause_toggle
-            )
+            if not self.headless:
+                # Create stats window for AI mode with callbacks
+                self.stats_window = GameStats(
+                    self.input_handler.get_current_ai_name(),
+                    speed_callback=self.on_speed_change,
+                    pause_callback=self.on_pause_toggle
+                )
         else:
-            self.input_handler.set_control_type("human")  # Explicitly set human control
+            self.input_handler.set_control_type("human")
             self.stats_window = None
 
     def reset_game(self):
@@ -134,3 +139,33 @@ class Game:
             self.clock.tick(60)  # Cap at 60 FPS for smooth rendering
         
         pygame.quit() 
+
+    def run_headless(self):
+        """Run the game without rendering for simulation purposes"""
+        logging.debug("Starting headless game run")
+        max_steps = 1000  # Prevent infinite loops
+        steps = 0
+        
+        try:
+            while not self.game_state.game_over and steps < max_steps:
+                # Handle AI input
+                self.input_handler.handle_input(None, self.snake, self.food)
+                
+                # Update game state
+                if not self.snake.move():
+                    logging.debug(f"Game over: Snake collision at step {steps}")
+                    self.game_state.game_over = True
+                else:
+                    self.game_state.update(self.snake, self.food)
+                
+                steps += 1
+                if steps >= max_steps:
+                    logging.debug("Game reached maximum steps")
+            
+            logging.debug(f"Headless game completed. Score: {self.game_state.score}, Steps: {steps}")
+            return self.game_state.score
+            
+        except Exception as e:
+            logging.error(f"Error in headless game: {str(e)}")
+            logging.error(traceback.format_exc())
+            raise
