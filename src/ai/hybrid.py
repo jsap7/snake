@@ -1,7 +1,7 @@
 from src.ai.base import BaseAI
 from src.ai.astar import AStarAI
 from src.ai.hamiltonian import HamiltonianWithShortcutsAI
-from typing import Tuple, List, Optional, Set
+from typing import Tuple, List, Optional, Set, Dict
 from src.utils.settings import GRID_SIZE
 from collections import deque
 
@@ -9,55 +9,26 @@ class SmartHybridAI(BaseAI):
     def __init__(self):
         super().__init__("smart_hybrid")
         self.name = "Smart Hybrid"
-        self.description = "Advanced hybrid of A* and Hamiltonian with guaranteed escape paths"
+        self.description = "Advanced hybrid of A* and Hamiltonian with optimized performance"
         self.astar = AStarAI()
         self.hamiltonian = HamiltonianWithShortcutsAI()
         self.current_strategy = "astar"
         self.grid_size = GRID_SIZE
-        self.last_food_distance = 0
-        self.consecutive_food_distance_increases = 0
         self.safety_margin = 2
+        self.space_score_cache: Dict[Tuple[Tuple[int, int], Tuple[Tuple[int, int], ...]], float] = {}
         
-    def find_escape_path(self, start: Tuple[int, int], snake_body: List[Tuple[int, int]], 
-                        min_path_length: int = 5) -> List[Tuple[int, int]]:
-        """Find a path to a safe area with minimum length"""
-        queue = deque([(start, [start])])
-        visited = {start}
-        best_path = []
-        max_space_score = 0
-        
-        while queue:
-            current, path = queue.popleft()
-            
-            # Calculate space score for current position
-            space_score = self.calculate_space_score(current, snake_body)
-            
-            # If we found a path of sufficient length to an open area
-            if len(path) >= min_path_length and space_score > max_space_score:
-                best_path = path
-                max_space_score = space_score
-            
-            # Add neighbors to queue
-            for next_pos in self.get_valid_neighbors(current, snake_body):
-                if next_pos not in visited:
-                    visited.add(next_pos)
-                    queue.append((next_pos, path + [next_pos]))
-        
-        return best_path
-
-    def has_escape_path(self, pos: Tuple[int, int], snake_body: List[Tuple[int, int]], 
-                       min_length: int = 5) -> bool:
-        """Check if position has an escape path of minimum length"""
-        escape_path = self.find_escape_path(pos, snake_body, min_length)
-        return len(escape_path) >= min_length
-    
     def calculate_space_score(self, pos: Tuple[int, int], snake_body: List[Tuple[int, int]]) -> float:
-        """Calculate available space score with flood fill"""
+        """Calculate available space score with flood fill and caching"""
+        # Convert snake_body to tuple for hashing
+        cache_key = (pos, tuple(snake_body))
+        if cache_key in self.space_score_cache:
+            return self.space_score_cache[cache_key]
+            
         visited = {pos}
         queue = deque([pos])
         space_score = 0
         depth = 0
-        max_depth = 5  # Limit depth of flood fill
+        max_depth = 4  # Reduced depth for performance
         
         while queue and depth < max_depth:
             level_size = len(queue)
@@ -71,45 +42,50 @@ class SmartHybridAI(BaseAI):
                     if neighbor not in visited:
                         visited.add(neighbor)
                         queue.append(neighbor)
-                        # Weight closer spaces more heavily
                         space_score += 1.0 / depth
         
+        self.space_score_cache[cache_key] = space_score
+        if len(self.space_score_cache) > 1000:  # Prevent memory bloat
+            self.space_score_cache.clear()
         return space_score
     
     def validate_path(self, path: List[Tuple[int, int]], snake_body: List[Tuple[int, int]]) -> bool:
-        """Validate that a path maintains escape routes"""
+        """Validate path safety with optimized checks"""
         if not path:
             return False
             
         temp_body = snake_body.copy()
         
-        # Check each step along the path
-        for i, pos in enumerate(path):
-            # Update snake body for this step
+        # Only check first few positions for performance
+        check_positions = path[:4]  # Reduced from checking entire path
+        
+        for pos in check_positions:
+            # Update snake body
             temp_body = temp_body[1:] + [pos]
             
-            # For immediate next position, require more stringent safety
-            if i == 0:
-                if not self.has_escape_path(pos, temp_body, min_length=6):
-                    return False
-            # For future positions, ensure basic escape exists
-            elif not self.has_escape_path(pos, temp_body, min_length=4):
+            # Quick neighbor check first (faster than space score)
+            neighbors = self.get_valid_neighbors(pos, temp_body)
+            if len(neighbors) < 2:  # Need at least 2 escape routes
                 return False
             
-            # Ensure sufficient space around position
+            # Only calculate space score if we pass neighbor check
             space_score = self.calculate_space_score(pos, temp_body)
-            if space_score < 5:
+            if space_score < 4:  # Slightly reduced threshold for performance
                 return False
         
         return True
     
     def should_use_astar(self, snake_head: Tuple[int, int], food_pos: Tuple[int, int], 
                         snake_body: List[Tuple[int, int]], astar_path: List[Tuple[int, int]]) -> bool:
-        """Determine if A* is safe to use"""
+        """Optimized strategy decision making"""
         snake_length = len(snake_body)
         grid_area = self.grid_size ** 2
         
-        # Early game: Be aggressive but safe
+        # Quick early checks
+        if not astar_path:
+            return False
+            
+        # Early game: Be aggressive
         if snake_length < grid_area * 0.3:
             return self.validate_path(astar_path, snake_body)
         
@@ -117,15 +93,13 @@ class SmartHybridAI(BaseAI):
         if snake_length > grid_area * 0.6:
             return False
         
-        # Mid game: Be very careful
-        if not astar_path or not self.validate_path(astar_path, snake_body):
+        # Mid game: More careful validation
+        if not self.validate_path(astar_path, snake_body):
             return False
-        
-        # Additional mid-game safety checks
+            
+        # Final space check
         space_score = self.calculate_space_score(snake_head, snake_body)
-        return (space_score > 8 and 
-                len(astar_path) < grid_area * 0.2 and
-                self.has_escape_path(astar_path[-1], snake_body + astar_path[:-1], min_length=6))
+        return space_score > 6 and len(astar_path) < grid_area * 0.2
     
     def get_next_move(self, snake_head: Tuple[int, int], food_pos: Tuple[int, int], 
                       snake_body: List[Tuple[int, int]]) -> Tuple[int, int]:
