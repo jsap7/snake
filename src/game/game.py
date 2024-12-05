@@ -9,7 +9,7 @@ from src.game.game_state import GameState
 from src.ui.game_stats import GameStats
 
 class Game:
-    def __init__(self, start_with_ai=False, ai_algorithm="astar"):
+    def __init__(self, start_with_ai=False, ai_algorithm="astar", speed=10):
         pygame.init()
         self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
         pygame.display.set_caption("Snake Game")
@@ -24,8 +24,8 @@ class Game:
         
         # Game flow control
         self.is_running = True
-        self.is_playing = False
-        self.current_speed = FPS
+        self.is_playing = True  # Set to True for human mode to start immediately
+        self.current_speed = speed  # Use the passed speed parameter
         self.is_paused = False
         self.last_update_time = time.time()
         
@@ -33,7 +33,6 @@ class Game:
         if start_with_ai:
             self.input_handler.current_ai_name = ai_algorithm
             self.input_handler.set_control_type("ai")
-            self.is_playing = True  # Start game immediately in AI mode
             
             # Create stats window for AI mode with callbacks
             self.stats_window = GameStats(
@@ -42,6 +41,7 @@ class Game:
                 pause_callback=self.on_pause_toggle
             )
         else:
+            self.input_handler.set_control_type("human")  # Explicitly set human control
             self.stats_window = None
 
     def reset_game(self):

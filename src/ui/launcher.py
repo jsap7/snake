@@ -1,145 +1,126 @@
-import tkinter as tk
-from tkinter import ttk
+import customtkinter as ctk
 from src.game.game import Game
-from src.ai import AI_ALGORITHMS
 
 class GameLauncher:
     def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("Snake Game Launcher")
-        self.root.geometry("800x600")  # Wider but shorter window
-        self.root.resizable(False, False)
-        self.root.configure(bg='#2E2E2E')
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("dark-blue")
         
-        # Style configuration
-        self.style = ttk.Style()
-        self.style.configure('Title.TLabel', 
-                           font=('Helvetica', 28, 'bold'),
-                           padding=15,
-                           background='#2E2E2E',
-                           foreground='white')
-        self.style.configure('Header.TLabel',
-                           font=('Helvetica', 16),
-                           padding=10,
-                           background='#2E2E2E',
-                           foreground='white')
-        self.style.configure('Description.TLabel',
-                           font=('Helvetica', 12),
-                           padding=5,
-                           background='#2E2E2E',
-                           foreground='white')
-        self.style.configure('TRadiobutton',
-                           font=('Helvetica', 14),
-                           background='#2E2E2E',
-                           foreground='white')
+        self.root = ctk.CTk()
+        self.root.title("Snake Game Launcher")
+        self.root.geometry("1000x650")
+        self.root.resizable(False, False)
+        
+        # Variables
+        self.control_mode = ctk.StringVar(value="human")
+        self.algorithm = ctk.StringVar(value="astar")
+        self.speed = ctk.IntVar(value=10)
         
         self.create_widgets()
     
     def create_widgets(self):
-        # Main container with padding
-        container = tk.Frame(self.root, bg='#2E2E2E')
-        container.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        # Main container
+        container = ctk.CTkFrame(self.root)
+        container.pack(fill="both", expand=True, padx=20, pady=20)
         
-        # Title with snake emoji
-        title_frame = tk.Frame(container, bg='#2E2E2E')
-        title_frame.pack(fill=tk.X, pady=(0, 20))
-        
-        title_label = tk.Label(
-            title_frame, 
+        # Title
+        title_label = ctk.CTkLabel(
+            container,
             text="🐍 Snake Game",
-            font=('Helvetica', 32, 'bold'),
-            fg='white',
-            bg='#2E2E2E'
+            font=ctk.CTkFont(size=32, weight="bold"),
         )
-        title_label.pack()
+        title_label.pack(pady=(0, 20))
         
         # Create two columns
-        columns_frame = tk.Frame(container, bg='#2E2E2E')
-        columns_frame.pack(fill=tk.BOTH, expand=True)
+        columns_frame = ctk.CTkFrame(container)
+        columns_frame.pack(fill="both", expand=True, padx=10)
         
-        # Left column for game mode and speed
-        left_column = tk.Frame(columns_frame, bg='#2E2E2E')
-        left_column.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+        # Left Column
+        left_column = ctk.CTkFrame(columns_frame)
+        left_column.pack(side="left", fill="both", expand=True, padx=(0, 10))
         
         # Game Mode Frame
-        mode_frame = tk.LabelFrame(left_column, text="Game Mode", 
-                                 font=('Helvetica', 14),
-                                 fg='white', bg='#2E2E2E',
-                                 padx=15, pady=15)
-        mode_frame.pack(fill=tk.X, pady=(0, 20))
+        mode_frame = ctk.CTkFrame(left_column)
+        mode_frame.pack(fill="x", pady=(0, 20))
         
-        self.control_mode = tk.StringVar(value="human")
+        mode_label = ctk.CTkLabel(
+            mode_frame,
+            text="Game Mode",
+            font=ctk.CTkFont(size=16, weight="bold")
+        )
+        mode_label.pack(pady=(10, 5))
         
         # Mode Selection
-        tk.Radiobutton(
-            mode_frame, 
+        mode_buttons_frame = ctk.CTkFrame(mode_frame)
+        mode_buttons_frame.pack(fill="x", padx=20, pady=10)
+        
+        ctk.CTkRadioButton(
+            mode_buttons_frame,
             text="👤 Human",
             variable=self.control_mode,
             value="human",
             command=self.toggle_ai_options,
-            font=('Helvetica', 14),
-            fg='white', bg='#2E2E2E',
-            selectcolor='#2E2E2E'
-        ).pack(side=tk.LEFT, padx=20)
+            font=ctk.CTkFont(size=14)
+        ).pack(side="left", padx=20)
         
-        tk.Radiobutton(
-            mode_frame, 
+        ctk.CTkRadioButton(
+            mode_buttons_frame,
             text="🤖 AI",
             variable=self.control_mode,
             value="ai",
             command=self.toggle_ai_options,
-            font=('Helvetica', 14),
-            fg='white', bg='#2E2E2E',
-            selectcolor='#2E2E2E'
-        ).pack(side=tk.LEFT, padx=20)
+            font=ctk.CTkFont(size=14)
+        ).pack(side="left", padx=20)
         
         # Game Speed Frame
-        speed_frame = tk.LabelFrame(left_column, text="Game Speed",
-                                  font=('Helvetica', 14),
-                                  fg='white', bg='#2E2E2E',
-                                  padx=15, pady=15)
-        speed_frame.pack(fill=tk.X)
+        speed_frame = ctk.CTkFrame(left_column)
+        speed_frame.pack(fill="x")
         
-        self.speed = tk.IntVar(value=10)
-        
-        speed_label = tk.Label(
+        speed_label = ctk.CTkLabel(
             speed_frame,
-            text="Speed (FPS):",
-            font=('Helvetica', 14),
-            fg='white', bg='#2E2E2E'
+            text="Game Speed",
+            font=ctk.CTkFont(size=16, weight="bold")
         )
-        speed_label.pack(side=tk.LEFT)
+        speed_label.pack(pady=(10, 5))
         
-        self.fps_label = tk.Label(
-            speed_frame,
-            text="10",
-            font=('Helvetica', 14),
-            fg='white', bg='#2E2E2E'
+        speed_slider_frame = ctk.CTkFrame(speed_frame)
+        speed_slider_frame.pack(fill="x", padx=20, pady=10)
+        
+        self.fps_label = ctk.CTkLabel(
+            speed_slider_frame,
+            text="10 FPS",
+            font=ctk.CTkFont(size=14)
         )
-        self.fps_label.pack(side=tk.RIGHT)
+        self.fps_label.pack(side="right", padx=10)
         
-        speed_scale = ttk.Scale(
-            speed_frame,
+        speed_slider = ctk.CTkSlider(
+            speed_slider_frame,
             from_=5,
             to=30,
             variable=self.speed,
-            orient=tk.HORIZONTAL,
             command=self.update_speed_label
         )
-        speed_scale.pack(fill=tk.X, pady=(10, 0))
+        speed_slider.pack(fill="x", padx=(10, 10))
         
-        # Right column for AI algorithms
-        right_column = tk.Frame(columns_frame, bg='#2E2E2E')
-        right_column.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(10, 0))
+        # Right Column - AI Algorithms
+        right_column = ctk.CTkFrame(columns_frame)
+        right_column.pack(side="left", fill="both", expand=True, padx=(10, 0))
         
-        # AI Algorithm Frame
-        self.ai_frame = tk.LabelFrame(right_column, text="AI Algorithm",
-                                    font=('Helvetica', 14),
-                                    fg='white', bg='#2E2E2E',
-                                    padx=15, pady=15)
-        self.ai_frame.pack(fill=tk.BOTH, expand=True)
+        algorithms_label = ctk.CTkLabel(
+            right_column,
+            text="AI Algorithm",
+            font=ctk.CTkFont(size=16, weight="bold")
+        )
+        algorithms_label.pack(pady=(10, 5))
         
-        self.algorithm = tk.StringVar(value="astar")
+        # Scrollable frame for algorithms - make it wider
+        algorithms_scroll = ctk.CTkScrollableFrame(
+            right_column,
+            height=350,
+            width=500  # Set a fixed width for the scrollable frame
+        )
+        algorithms_scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        
         self.radio_buttons = []
         
         algorithms = [
@@ -155,60 +136,38 @@ class GameLauncher:
             ("🎮 Smart Hybrid", "smart_hybrid", "Combines A* and Wall Following adaptively")
         ]
         
-        # Create a canvas with scrollbar for algorithms
-        canvas = tk.Canvas(self.ai_frame, bg='#2E2E2E', highlightthickness=0)
-        scrollbar = ttk.Scrollbar(self.ai_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg='#2E2E2E')
-        
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=canvas.winfo_reqwidth())
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        # Pack algorithms into scrollable frame
         for text, value, desc in algorithms:
-            frame = tk.Frame(scrollable_frame, bg='#2E2E2E')
-            frame.pack(fill=tk.X, pady=3)
+            frame = ctk.CTkFrame(algorithms_scroll)
+            frame.pack(fill="x", pady=5)
             
-            radio = tk.Radiobutton(
+            radio = ctk.CTkRadioButton(
                 frame,
                 text=text,
                 variable=self.algorithm,
                 value=value,
-                font=('Helvetica', 12),
-                fg='white', bg='#2E2E2E',
-                selectcolor='#2E2E2E'
+                font=ctk.CTkFont(size=14),
+                width=200  # Fixed width for radio buttons
             )
-            radio.pack(side=tk.LEFT)
+            radio.pack(side="left", padx=10)
             self.radio_buttons.append(radio)
             
-            tk.Label(
+            desc_label = ctk.CTkLabel(
                 frame,
                 text=desc,
-                font=('Helvetica', 10),
-                fg='white', bg='#2E2E2E'
-            ).pack(side=tk.LEFT, padx=10)
+                font=ctk.CTkFont(size=12),
+                wraplength=250,  # Adjusted wraplength
+                justify="left"   # Ensure left alignment
+            )
+            desc_label.pack(side="left", padx=(5, 10), fill="x", expand=True)
         
-        # Pack canvas and scrollbar
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        # Start Button at the bottom
-        self.start_button = tk.Button(
+        # Start Button
+        self.start_button = ctk.CTkButton(
             container,
             text="▶  Start Game",
-            font=('Helvetica', 16, 'bold'),
-            bg='black',
-            fg='white',
-            activebackground='black',
-            activeforeground='white',
-            relief=tk.RAISED,
+            font=ctk.CTkFont(size=16, weight="bold"),
             command=self.start_game,
-            width=20,
-            height=1
+            width=200,
+            height=40
         )
         self.start_button.pack(pady=20)
         
@@ -216,10 +175,10 @@ class GameLauncher:
         self.toggle_ai_options()
     
     def update_speed_label(self, value):
-        self.fps_label.configure(text=str(int(float(value))))
+        self.fps_label.configure(text=f"{int(float(value))} FPS")
     
     def toggle_ai_options(self):
-        state = 'normal' if self.control_mode.get() == "ai" else 'disabled'
+        state = "normal" if self.control_mode.get() == "ai" else "disabled"
         for radio in self.radio_buttons:
             radio.configure(state=state)
     
@@ -227,7 +186,8 @@ class GameLauncher:
         self.root.withdraw()
         game = Game(
             start_with_ai=self.control_mode.get() == "ai",
-            ai_algorithm=self.algorithm.get()
+            ai_algorithm=self.algorithm.get(),
+            speed=self.speed.get()
         )
         game.run()
         self.root.deiconify()
