@@ -11,8 +11,10 @@ from src.game.game_state import GameState
 from src.ui.game_stats import GameStats
 
 class Game:
-    def __init__(self, start_with_ai=False, ai_algorithm="astar", speed=10, headless=False):
+    def __init__(self, start_with_ai=False, ai_algorithm="astar", speed=10, headless=False, genetic_individual=None):
         self.headless = headless
+        self.moves = 0  # Track number of moves for genetic fitness
+        
         if not self.headless:
             pygame.init()
             self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
@@ -35,6 +37,8 @@ class Game:
         
         # Set initial control mode and AI algorithm
         if start_with_ai:
+            if genetic_individual:
+                self.input_handler.set_genetic_individual(genetic_individual)
             self.input_handler.current_ai_name = ai_algorithm
             self.input_handler.set_control_type("ai")
             
@@ -159,6 +163,8 @@ class Game:
                     self.game_state.update(self.snake, self.food)
                 
                 steps += 1
+                self.moves = steps
+                
                 if steps >= max_steps:
                     logging.debug("Game reached maximum steps")
             

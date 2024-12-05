@@ -13,14 +13,22 @@ class InputHandler:
         self.current_ai: Optional['BaseAI'] = None
         self.current_ai_name: Optional[str] = None
         self.current_path: List[Tuple[int, int]] = []
+        self.genetic_individual = None
+    
+    def set_genetic_individual(self, individual):
+        """Set the genetic individual for genetic algorithm mode"""
+        self.genetic_individual = individual
     
     def set_control_type(self, control_type: str) -> None:
         """Set the control type and initialize AI if needed"""
         self.control_type = control_type
         if control_type == "ai" and self.current_ai_name:
-            # Initialize the AI algorithm
-            ai_class = AI_ALGORITHMS[self.current_ai_name]
-            self.current_ai = ai_class()
+            if self.current_ai_name == "genetic" and self.genetic_individual:
+                self.current_ai = self.genetic_individual
+            else:
+                # Initialize the AI algorithm
+                ai_class = AI_ALGORITHMS[self.current_ai_name]
+                self.current_ai = ai_class()
             self.current_path = []
     
     def handle_input(self, event: Optional[pygame.event.Event], snake: 'Snake', food: 'Food') -> None:

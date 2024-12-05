@@ -1,24 +1,25 @@
 from .astar import AStarAI
 from .bfs import BFSAI
 from .dfs import DFSAI
-from .advanced_hamiltonian import AdvancedHamiltonianAI
+from .dijkstra import DijkstraAI
+from .greedy import GreedyBestFirstAI
+from .hamiltonian import HamiltonianWithShortcutsAI
 from .hybrid import HybridAI
 from .random_walk import RandomWalkAI
-from .greedy import GreedyBestFirstAI
-from .dijkstra import DijkstraAI
-from .wall_follower import WallFollowerAI
 from .smart_hybrid import SmartHybridAI
+from .wall_follower import WallFollowerAI
+from .genetic import GeneticAI
 
-# Dictionary mapping algorithm names to their classes
 AI_ALGORITHMS = {
     "astar": AStarAI,
     "bfs": BFSAI,
     "dfs": DFSAI,
-    "advanced_hamiltonian": AdvancedHamiltonianAI,
+    "dijkstra": DijkstraAI,
+    "greedy": GreedyBestFirstAI,
+    "advanced_hamiltonian": HamiltonianWithShortcutsAI,
     "hybrid": HybridAI,
     "random": RandomWalkAI,
-    "greedy": GreedyBestFirstAI,
-    "dijkstra": DijkstraAI,
+    "smart_hybrid": SmartHybridAI,
     "wall_follower": WallFollowerAI,
-    "smart_hybrid": SmartHybridAI
+    "genetic": GeneticAI
 }
