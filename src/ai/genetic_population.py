@@ -1,6 +1,93 @@
 import random
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from .genetic import GeneticAI
+from src.ai.base import BaseAI
+
+class GeneticIndividual(BaseAI):
+    def __init__(self):
+        super().__init__()
+        self.name = "Genetic Individual"
+        self.description = "Trained genetic algorithm"
+        self.weights = {
+            'food_distance': random.uniform(-1, 1),
+            'wall_distance': random.uniform(-1, 1),
+            'tail_distance': random.uniform(-1, 1),
+            'space_freedom': random.uniform(-1, 1)
+        }
+        self.fitness = 0
+        self.current_path = []  # For visualization
+    
+    def calculate_features(self, snake_head: Tuple[int, int], food_pos: Tuple[int, int], 
+                         snake_body: List[Tuple[int, int]]) -> Dict[str, float]:
+        """Calculate input features for decision making"""
+        # Distance to food
+        food_distance = abs(snake_head[0] - food_pos[0]) + abs(snake_head[1] - food_pos[1])
+        food_distance = 1.0 - (food_distance / (self.grid_size * 2))  # Normalize
+        
+        # Distance to walls
+        wall_distance = min(
+            snake_head[0],  # Distance to left wall
+            self.grid_size - 1 - snake_head[0],  # Distance to right wall
+            snake_head[1],  # Distance to top wall
+            self.grid_size - 1 - snake_head[1]   # Distance to bottom wall
+        )
+        wall_distance = wall_distance / (self.grid_size / 2)  # Normalize
+        
+        # Distance to tail
+        tail_distances = [abs(snake_head[0] - x) + abs(snake_head[1] - y) 
+                        for x, y in snake_body[1:]]
+        tail_distance = min(tail_distances) if tail_distances else self.grid_size
+        tail_distance = tail_distance / self.grid_size  # Normalize
+        
+        # Available space (freedom of movement)
+        neighbors = self.get_valid_neighbors(snake_head, snake_body)
+        space_freedom = len(neighbors) / 4  # Normalize by max possible neighbors
+        
+        return {
+            'food_distance': food_distance,
+            'wall_distance': wall_distance,
+            'tail_distance': tail_distance,
+            'space_freedom': space_freedom
+        }
+    
+    def get_next_move(self, snake_head: Tuple[int, int], food_pos: Tuple[int, int], 
+                      snake_body: List[Tuple[int, int]]) -> Tuple[int, int]:
+        """Decide next move based on current state and learned weights"""
+        # Get all possible moves
+        possible_moves = []
+        for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+            new_pos = (snake_head[0] + dx, snake_head[1] + dy)
+            if new_pos not in snake_body and 0 <= new_pos[0] < self.grid_size and 0 <= new_pos[1] < self.grid_size:
+                possible_moves.append((dx, dy, new_pos))
+        
+        if not possible_moves:
+            return (0, 0)
+        
+        # Evaluate each move
+        best_move = None
+        best_score = float('-inf')
+        
+        for dx, dy, new_pos in possible_moves:
+            # Calculate features for this move
+            features = self.calculate_features(new_pos, food_pos, snake_body)
+            
+            # Calculate weighted sum
+            score = sum(self.weights[feature] * value 
+                       for feature, value in features.items())
+            
+            if score > best_score:
+                best_score = score
+                best_move = (dx, dy)
+                self.current_path = [new_pos]  # Update visualization path
+        
+        return best_move or (0, 0)
+    
+    def update_fitness(self, score: int, moves: int):
+        """Update individual's fitness based on game performance"""
+        # Reward higher scores and penalize excessive moves
+        self.fitness = score * 100 - moves
+        if self.fitness < 0:
+            self.fitness = 0
 
 class GeneticPopulation:
     def __init__(self, population_size: int = 50):

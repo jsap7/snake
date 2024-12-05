@@ -9,6 +9,7 @@ from .random_walk import RandomWalkAI
 from .smart_hybrid import SmartHybridAI
 from .wall_follower import WallFollowerAI
 from .genetic import GeneticAI
+from .perfect_ai import PerfectAI
 
 AI_ALGORITHMS = {
     "astar": AStarAI,
@@ -21,5 +22,6 @@ AI_ALGORITHMS = {
     "random": RandomWalkAI,
     "smart_hybrid": SmartHybridAI,
     "wall_follower": WallFollowerAI,
-    "genetic": GeneticAI
+    "genetic": GeneticAI,
+    "perfect": PerfectAI
 }

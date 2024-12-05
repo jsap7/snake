@@ -1,7 +1,7 @@
 import pygame
 
 # Game dimensions
-GRID_SIZE = 15
+GRID_SIZE = 20
 CELL_SIZE = 50
 WINDOW_SIZE = GRID_SIZE * CELL_SIZE
 CELL_PADDING = 4

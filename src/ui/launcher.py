@@ -60,8 +60,13 @@ class GameLauncher:
             ("🌐 Dijkstra", "dijkstra", "Finds shortest path by exploring all directions"),
             ("🧱 Wall Follower", "wall_follower", "Follows walls and edges of the grid"),
             ("🎮 Smart Hybrid", "smart_hybrid", "Combines A* and Wall Following adaptively"),
-            ("🧬 Genetic Algorithm", "genetic", "Evolves behavior through generations")
+            ("🧬 Genetic Algorithm", "genetic", "Evolves behavior through generations"),
+            ("🌟 Perfect AI", "perfect", "Combines A* with Hamiltonian cycle and safe shortcuts"),
         ]
+        
+        # Clear simulation log file
+        with open("simulation.log", "w") as f:
+            f.write("")  # Clear the file
         
         self.create_widgets()
         logging.info("GameLauncher initialized successfully")
@@ -260,18 +265,18 @@ class GameLauncher:
         )
         algorithms_label.pack(pady=(10, 5))
         
-        # Scrollable frame for algorithms - increase width and adjust wraplength
-        algorithms_scroll = ctk.CTkScrollableFrame(
+        # Store algorithms_scroll as instance variable
+        self.algorithms_scroll = ctk.CTkScrollableFrame(
             right_column,
             height=350,
             width=600  # Increased width
         )
-        algorithms_scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        self.algorithms_scroll.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.radio_buttons = []
         
         for text, value, desc in self.algorithms:
-            frame = ctk.CTkFrame(algorithms_scroll)
+            frame = ctk.CTkFrame(self.algorithms_scroll)  # Use self.algorithms_scroll
             frame.pack(fill="x", pady=5)
             
             radio = ctk.CTkRadioButton(
@@ -292,25 +297,37 @@ class GameLauncher:
                 justify="left"   # Ensure left alignment
             )
             desc_label.pack(side="left", padx=(5, 10), fill="x", expand=True)
+            self.radio_buttons.append(radio)
         
         # Buttons Frame
-        buttons_frame = ctk.CTkFrame(container)
-        buttons_frame.pack(pady=20)
+        self.buttons_frame = ctk.CTkFrame(container)
+        self.buttons_frame.pack(pady=20)
         
-        # Game Button
+        # Play Game Button (for human/AI mode)
         self.game_button = ctk.CTkButton(
-            buttons_frame,
-            text="▶  Start Game",
+            self.buttons_frame,
+            text="▶  Play Game",
             font=ctk.CTkFont(size=16, weight="bold"),
             command=self.start_game,
             width=200,
             height=40
         )
-        self.game_button.pack(side="left", padx=10)
+        
+        # Run Simulation Button
+        self.simulation_button = ctk.CTkButton(
+            self.buttons_frame,
+            text="📊 Run Simulation",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            command=self.start_simulation,
+            width=200,
+            height=40,
+            fg_color="#2B7821",  # Green color
+            hover_color="#1F5817"
+        )
         
         # Training Button
         self.train_button = ctk.CTkButton(
-            buttons_frame,
+            self.buttons_frame,
             text="🧬 Start Training",
             font=ctk.CTkFont(size=16, weight="bold"),
             command=self.start_training,
@@ -319,7 +336,6 @@ class GameLauncher:
             fg_color="#2B7821",  # Green color
             hover_color="#1F5817"
         )
-        self.train_button.pack(side="left", padx=10)
         
         # Initial state
         self.toggle_options()
@@ -337,8 +353,14 @@ class GameLauncher:
         self.gen_label.configure(text=f"Generations: {int(float(value))}")
     
     def toggle_options(self):
+        """Update UI based on selected mode"""
         mode = self.control_mode.get()
-        # Toggle AI options
+        
+        # Clear buttons frame
+        for widget in self.buttons_frame.winfo_children():
+            widget.pack_forget()
+        
+        # Toggle AI algorithm selection
         ai_state = "normal" if mode == "ai" else "disabled"
         for radio in self.radio_buttons:
             radio.configure(state=ai_state)
@@ -363,13 +385,13 @@ class GameLauncher:
                     for child in widget.winfo_children():
                         child.configure(state=train_state)
         
-        # Toggle buttons
-        self.game_button.configure(state="normal" if mode in ["human", "ai"] else "disabled")
-        self.train_button.configure(state="normal" if mode == "training" else "disabled")
-        
-        # Add this line to handle simulation mode
-        if mode == "simulation":
-            self.start_simulation()
+        # Show appropriate buttons based on mode
+        if mode in ["human", "ai"]:
+            self.game_button.pack(side="left", padx=10)
+        elif mode == "simulation":
+            self.simulation_button.pack(side="left", padx=10)
+        elif mode == "training":
+            self.train_button.pack(side="left", padx=10)
     
     def start_training(self):
         """Start genetic algorithm training"""
@@ -405,8 +427,12 @@ class GameLauncher:
                     info = self.genetic_population.get_generation_info()
                     logging.info(f"Generation {info['generation']}: Best Fitness = {info['best_fitness_ever']}")
                 
-                # Training complete
-                self.root.after(0, lambda: [progress_window.destroy(), self.show_training_results()])
+                # Training complete - save the model
+                self.root.after(0, lambda: [
+                    progress_window.destroy(),
+                    self.save_trained_model(),  # Save the model
+                    self.show_training_results()
+                ])
                 
             except Exception as e:
                 logging.error(f"Training error: {str(e)}")
@@ -423,6 +449,63 @@ class GameLauncher:
         train_thread = threading.Thread(target=train)
         train_thread.daemon = True
         train_thread.start()
+    
+    def save_trained_model(self):
+        """Save trained genetic algorithm model"""
+        if not os.path.exists('trained_models'):
+            os.makedirs('trained_models')
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        model_name = f"genetic_model_{timestamp}"
+        
+        # Save model weights
+        model_path = f"trained_models/{model_name}.json"
+        model_data = {
+            'weights': self.genetic_population.best_individual.weights,
+            'fitness': self.genetic_population.best_fitness,
+            'generation': self.genetic_population.generation
+        }
+        
+        with open(model_path, 'w') as f:
+            json.dump(model_data, f, indent=4)
+        
+        logging.info(f"Saved trained model to {model_path}")
+        
+        # Add model to AI algorithms list
+        new_algo = (
+            f"🧠 Trained GA {timestamp}", 
+            f"trained_ga_{timestamp}", 
+            f"Trained genetic algorithm (fitness: {self.genetic_population.best_fitness:.0f})"
+        )
+        self.algorithms.append(new_algo)
+        
+        # Add new radio button to algorithms scroll frame
+        frame = ctk.CTkFrame(self.algorithms_scroll)
+        frame.pack(fill="x", pady=5)
+        
+        radio = ctk.CTkRadioButton(
+            frame,
+            text=new_algo[0],
+            variable=self.algorithm,
+            value=new_algo[1],
+            font=ctk.CTkFont(size=14),
+            width=200
+        )
+        radio.pack(side="left", padx=10)
+        
+        desc_label = ctk.CTkLabel(
+            frame,
+            text=new_algo[2],
+            font=ctk.CTkFont(size=12),
+            wraplength=350,
+            justify="left"
+        )
+        desc_label.pack(side="left", padx=(5, 10), fill="x", expand=True)
+        
+        self.radio_buttons.append(radio)
+        
+        # Show success message
+        self.show_message("Success", f"Model saved as {model_name}")
     
     def show_training_results(self):
         """Show the results of genetic algorithm training"""
