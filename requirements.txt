@@ -1,0 +1,5 @@
+customtkinter>=5.2.0
+matplotlib>=3.7.1
+numpy>=1.24.3
+Pillow>=10.0.0  # Required by customtkinter for image handling
+pygame>=2.5.0   # For game rendering 
