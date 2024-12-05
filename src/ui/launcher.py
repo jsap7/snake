@@ -8,16 +8,20 @@ from datetime import datetime
 import os
 import logging
 import traceback
+import queue
+import threading
 
-# Configure logging
+# Configure logging - disable matplotlib font debugging
+logging.getLogger('matplotlib.font_manager').disabled = True
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,  # Change to INFO level
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('simulation.log'),
-        logging.StreamHandler()
     ]
 )
+# Disable matplotlib font debugging
+logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 
 class GameLauncher:
     def __init__(self):
@@ -36,6 +40,7 @@ class GameLauncher:
         self.speed = ctk.IntVar(value=10)
         self.num_simulations = ctk.IntVar(value=10)
         self.simulation_results = {}
+        self.result_queue = queue.Queue()
         
         # Store algorithms list as class variable
         self.algorithms = [
@@ -300,14 +305,14 @@ class GameLauncher:
         logging.info("Starting simulation process")
         
         def run_sim():
-            logging.info("Simulation thread started")
-            self.simulation_results = {}
-            total_sims = len(self.algorithms) * self.num_simulations.get()
-            logging.info(f"Planning to run {total_sims} total simulations")
-            
             try:
-                progress_window = self.create_progress_window(total_sims)
-                logging.info("Progress window created")
+                logging.info("Simulation thread started")
+                self.simulation_results = {}
+                total_sims = len(self.algorithms) * self.num_simulations.get()
+                logging.info(f"Planning to run {total_sims} total simulations")
+                
+                # Create progress window in main thread
+                self.root.after(0, lambda: self.create_and_store_progress_window(total_sims))
                 
                 for algo_name, algo_id, _ in self.algorithms:
                     logging.info(f"Starting simulations for algorithm: {algo_id}")
@@ -316,25 +321,21 @@ class GameLauncher:
                     for i in range(self.num_simulations.get()):
                         logging.debug(f"Running simulation {i+1} for {algo_id}")
                         try:
-                            # Create a new game instance for each simulation in headless mode
                             game = Game(
                                 start_with_ai=True,
                                 ai_algorithm=algo_id,
                                 speed=30,
-                                headless=True  # Run without pygame initialization
+                                headless=True
                             )
-                            logging.debug(f"Game instance created for {algo_id}")
-                            
                             score = game.run_headless()
-                            logging.debug(f"Simulation completed. Score: {score}")
                             scores.append(score)
                             
-                            # Update progress
+                            # Calculate progress
                             progress = ((len(scores) + (self.algorithms.index((algo_name, algo_id, _)) * 
                                        self.num_simulations.get())) / total_sims) * 100
                             
-                            # Update progress in the main thread
-                            self.root.after(0, progress_window.update_progress, progress)
+                            # Update progress in main thread
+                            self.root.after(0, lambda p=progress: self.update_progress(p))
                             
                         except Exception as e:
                             logging.error(f"Error in simulation {i+1} for {algo_id}: {str(e)}")
@@ -350,32 +351,53 @@ class GameLauncher:
                         logging.info(f"Results for {algo_id}: Avg={np.mean(scores):.2f}, Max={np.max(scores)}")
                 
                 logging.info("All simulations completed successfully")
-                # Show results in the main thread
-                self.root.after(0, lambda: [progress_window.destroy(), self.show_simulation_results()])
-            
+                # Put results in queue for main thread to handle
+                self.result_queue.put(("success", self.simulation_results))
+                
             except Exception as e:
                 logging.error(f"Critical simulation error: {str(e)}")
                 logging.error(traceback.format_exc())
-                self.root.after(0, lambda: self.show_error_dialog(str(e)))
-                if 'progress_window' in locals():
-                    self.root.after(0, progress_window.destroy)
-            finally:
-                # Re-enable buttons
-                self.root.after(0, self.enable_buttons)
+                self.result_queue.put(("error", str(e)))
         
         # Disable buttons during simulation
         self.sim_button.configure(state="disabled")
         self.game_button.configure(state="disabled")
         
-        # Run simulation in a separate thread
+        # Start simulation thread
         sim_thread = threading.Thread(target=run_sim)
+        sim_thread.daemon = True
         sim_thread.start()
-        logging.info("Simulation thread launched")
+        
+        # Start checking for results
+        self.root.after(100, self.check_simulation_results)
     
-    def enable_buttons(self):
-        logging.info("Re-enabling buttons")
-        self.sim_button.configure(state="normal")
-        self.game_button.configure(state="normal")
+    def create_and_store_progress_window(self, total_sims):
+        self.progress_window = SimulationProgress(self.root, total_sims)
+    
+    def update_progress(self, progress):
+        if hasattr(self, 'progress_window'):
+            self.progress_window.update_progress(progress)
+    
+    def check_simulation_results(self):
+        try:
+            result_type, result_data = self.result_queue.get_nowait()
+            
+            if hasattr(self, 'progress_window'):
+                self.progress_window.destroy()
+            
+            if result_type == "success":
+                self.simulation_results = result_data
+                self.show_simulation_results()
+            else:
+                self.show_error_dialog(result_data)
+            
+            # Re-enable buttons
+            self.sim_button.configure(state="normal")
+            self.game_button.configure(state="normal")
+            
+        except queue.Empty:
+            # No result yet, check again in 100ms
+            self.root.after(100, self.check_simulation_results)
     
     def show_error_dialog(self, error_message):
         logging.info("Showing error dialog")
@@ -396,10 +418,6 @@ class GameLauncher:
             command=error_window.destroy
         )
         ok_button.pack(pady=20)
-    
-    def create_progress_window(self, total_sims):
-        progress_window = SimulationProgress(self.root, total_sims)
-        return progress_window
     
     def show_simulation_results(self):
         results_window = ctk.CTkToplevel(self.root)
