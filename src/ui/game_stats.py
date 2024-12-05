@@ -186,9 +186,9 @@ class GameStats:
         cells_traveled = int(self.cells_traveled.get().split()[0]) + 1
         self.cells_traveled.set(f"{cells_traveled}")
         
-        # Calculate efficiency (score / cells traveled)
-        if cells_traveled > 0:
-            efficiency = (score / cells_traveled) * 100
+        # Calculate efficiency (score / turns)
+        if turns > 0:
+            efficiency = (score / turns) * 100
             self.efficiency.set(f"{efficiency:.2f}%")
         
         # Update time
