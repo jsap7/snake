@@ -27,7 +27,7 @@ class GameLauncher:
         
         self.root = ctk.CTk()
         self.root.title("Snake Game Launcher")
-        self.root.geometry("1000x650")
+        self.root.geometry("1200x900")
         self.root.resizable(False, False)
         
         # Variables
@@ -188,11 +188,11 @@ class GameLauncher:
         )
         algorithms_label.pack(pady=(10, 5))
         
-        # Scrollable frame for algorithms
+        # Scrollable frame for algorithms - increase width and adjust wraplength
         algorithms_scroll = ctk.CTkScrollableFrame(
             right_column,
             height=350,
-            width=500  # Set fixed width for better layout
+            width=600  # Increased width
         )
         algorithms_scroll.pack(fill="both", expand=True, padx=10, pady=10)
         
@@ -211,13 +211,12 @@ class GameLauncher:
                 width=200  # Fixed width for radio buttons
             )
             radio.pack(side="left", padx=10)
-            self.radio_buttons.append(radio)
             
             desc_label = ctk.CTkLabel(
                 frame,
                 text=desc,
                 font=ctk.CTkFont(size=12),
-                wraplength=250,  # Adjusted wraplength
+                wraplength=350,  # Increased wraplength
                 justify="left"   # Ensure left alignment
             )
             desc_label.pack(side="left", padx=(5, 10), fill="x", expand=True)
@@ -405,7 +404,7 @@ class GameLauncher:
     def show_simulation_results(self):
         results_window = ctk.CTkToplevel(self.root)
         results_window.title("Simulation Results")
-        results_window.geometry("1000x800")  # Larger window for better visibility
+        results_window.geometry("1400x900")
         
         # Create main container
         container = ctk.CTkFrame(results_window)
@@ -415,40 +414,130 @@ class GameLauncher:
         title = ctk.CTkLabel(
             container,
             text="🎮 AI Performance Analysis",
-            font=ctk.CTkFont(size=24, weight="bold")
+            font=ctk.CTkFont(size=28, weight="bold")
         )
-        title.pack(pady=(0, 20))
+        title.pack(pady=(0, 30))
         
-        # Stats Frame
-        stats_frame = ctk.CTkFrame(container)
-        stats_frame.pack(fill="x", pady=(0, 20))
-        
-        # Create matplotlib figure with dark style
+        # Create matplotlib figure with custom style
         plt.style.use('dark_background')
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
-        fig.patch.set_facecolor('#2b2b2b')
+        fig = plt.figure(figsize=(14, 10))
+        fig.patch.set_facecolor('#1E1E1E')  # Slightly lighter than black
         
+        # Custom colors
+        colors = ['#3498db', '#2ecc71', '#e74c3c', '#f1c40f', '#9b59b6', 
+                 '#1abc9c', '#e67e22', '#34495e', '#7f8c8d', '#c0392b']
+        
+        # Performance Comparison (Bar Chart)
+        ax1 = plt.subplot2grid((2, 1), (0, 0))
+        ax1.set_facecolor('#1E1E1E')
+        
+        # Clean up algorithm names (remove emojis)
         algorithms = list(self.simulation_results.keys())
+        clean_names = [name.split(' ', 1)[1] for name in algorithms]  # Remove emoji prefix
+        
         avg_scores = [self.simulation_results[algo]['avg'] for algo in algorithms]
         max_scores = [self.simulation_results[algo]['max'] for algo in algorithms]
         
-        # Plot average and max scores
-        x = np.arange(len(algorithms))
+        x = np.arange(len(clean_names))
         width = 0.35
         
-        ax1.bar(x - width/2, avg_scores, width, label='Average Score', color='#1f77b4')
-        ax1.bar(x + width/2, max_scores, width, label='Max Score', color='#2ca02c')
-        ax1.set_title('Performance Comparison', color='white', pad=20)
-        ax1.set_xticks(x)
-        ax1.set_xticklabels(algorithms, rotation=45, ha='right', color='white')
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
+        # Create bars with custom styling
+        bars1 = ax1.bar(x - width/2, avg_scores, width, label='Average Score', 
+                       color='#3498db', alpha=0.8)
+        bars2 = ax1.bar(x + width/2, max_scores, width, label='Max Score',
+                       color='#2ecc71', alpha=0.8)
         
-        # Box plot
-        ax2.boxplot([self.simulation_results[algo]['scores'] for algo in algorithms])
-        ax2.set_title('Score Distribution', color='white', pad=20)
-        ax2.set_xticklabels(algorithms, rotation=45, ha='right', color='white')
-        ax2.grid(True, alpha=0.3)
+        # Add value labels on top of bars
+        def autolabel(bars):
+            for bar in bars:
+                height = bar.get_height()
+                ax1.annotate(f'{int(height)}',
+                           xy=(bar.get_x() + bar.get_width() / 2, height),
+                           xytext=(0, 3),
+                           textcoords="offset points",
+                           ha='center', va='bottom',
+                           color='white', fontsize=8)
+        
+        autolabel(bars1)
+        autolabel(bars2)
+        
+        # Customize first subplot
+        ax1.set_title('Performance Comparison', color='white', pad=20, fontsize=16)
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(clean_names, rotation=45, ha='right')
+        # Move legend outside of the plot area
+        ax1.legend(bbox_to_anchor=(1.02, 1), loc='upper left', framealpha=0.8)
+        ax1.grid(True, alpha=0.2)
+        ax1.spines['top'].set_visible(False)
+        ax1.spines['right'].set_visible(False)
+        
+        # Algorithm Rankings (Bottom Plot)
+        ax2 = plt.subplot2grid((2, 1), (1, 0))
+        ax2.set_facecolor('#1E1E1E')
+        
+        # Calculate algorithm scores
+        algorithm_scores = []
+        for algo in algorithms:
+            data = self.simulation_results[algo]
+            avg_score = data['avg']
+            max_score = data['max']
+            consistency = 1 - (np.std(data['scores']) / max_score)  # Normalized consistency
+            
+            # Calculate overall score (weighted average of metrics)
+            overall_score = (
+                0.4 * (avg_score / max(avg_scores)) +  # Normalized average score (40% weight)
+                0.4 * (max_score / max(max_scores)) +  # Normalized max score (40% weight)
+                0.2 * consistency                      # Consistency score (20% weight)
+            ) * 100  # Convert to percentage
+            
+            algorithm_scores.append({
+                'name': clean_names[algorithms.index(algo)],
+                'score': overall_score,
+                'avg_score': avg_score,
+                'max_score': max_score,
+                'consistency': consistency * 100
+            })
+        
+        # Sort algorithms by overall score
+        algorithm_scores.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Create ranking visualization
+        names = [score['name'] for score in algorithm_scores]
+        scores = [score['score'] for score in algorithm_scores]
+        
+        # Create horizontal bars for rankings
+        bars = ax2.barh(np.arange(len(names)), scores, 
+                       color=[colors[i % len(colors)] for i in range(len(names))],
+                       alpha=0.8)
+        
+        # Add score labels
+        for i, bar in enumerate(bars):
+            width = bar.get_width()
+            ax2.text(width + 1, bar.get_y() + bar.get_height()/2,
+                    f'{scores[i]:.1f}%',
+                    va='center', color='white')
+        
+        # Customize ranking subplot
+        ax2.set_title('Algorithm Rankings', color='white', pad=20, fontsize=16)
+        ax2.set_yticks(np.arange(len(names)))
+        ax2.set_yticklabels(names)
+        ax2.set_xlim(0, 105)  # Leave room for percentage labels
+        ax2.grid(True, alpha=0.2)
+        ax2.spines['top'].set_visible(False)
+        ax2.spines['right'].set_visible(False)
+        
+        # Add ranking criteria explanation
+        criteria_text = "Ranking Criteria:\n" + \
+                       "• 40% Average Score\n" + \
+                       "• 40% Max Score\n" + \
+                       "• 20% Consistency"
+        
+        props = dict(boxstyle='round', facecolor='#2C3E50', alpha=0.8)
+        ax2.text(1.02, 0.02, criteria_text,
+                transform=ax2.transAxes,
+                fontsize=10,
+                verticalalignment='bottom',
+                bbox=props)
         
         # Adjust layout
         plt.tight_layout()
@@ -456,38 +545,7 @@ class GameLauncher:
         # Embed plot
         canvas = FigureCanvasTkAgg(fig, master=container)
         canvas.draw()
-        canvas.get_tk_widget().pack(fill="both", expand=True)
-        
-        # Add detailed stats table
-        stats_table = ctk.CTkFrame(container)
-        stats_table.pack(fill="x", pady=(20, 0))
-        
-        # Headers
-        headers = ["Algorithm", "Games", "Avg Score", "Max Score", "Min Score", "Std Dev"]
-        for i, header in enumerate(headers):
-            ctk.CTkLabel(
-                stats_table,
-                text=header,
-                font=ctk.CTkFont(size=12, weight="bold")
-            ).grid(row=0, column=i, padx=10, pady=5, sticky="w")
-        
-        # Data rows
-        for i, algo in enumerate(algorithms, 1):
-            data = self.simulation_results[algo]
-            row_data = [
-                algo,
-                str(len(data['scores'])),
-                f"{data['avg']:.2f}",
-                str(data['max']),
-                str(min(data['scores'])),
-                f"{np.std(data['scores']):.2f}"
-            ]
-            for j, value in enumerate(row_data):
-                ctk.CTkLabel(
-                    stats_table,
-                    text=value,
-                    font=ctk.CTkFont(size=12)
-                ).grid(row=i, column=j, padx=10, pady=5, sticky="w")
+        canvas.get_tk_widget().pack(fill="both", expand=True, pady=(0, 20))
         
         # Save results button
         save_button = ctk.CTkButton(
@@ -495,9 +553,10 @@ class GameLauncher:
             text="💾 Save Results",
             font=ctk.CTkFont(size=14),
             command=lambda: self.save_simulation_results(),
-            width=150
+            width=150,
+            height=35
         )
-        save_button.pack(pady=20)
+        save_button.pack(pady=10)
     
     def save_simulation_results(self):
         # Create results directory if it doesn't exist
