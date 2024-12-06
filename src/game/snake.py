@@ -3,10 +3,11 @@ from src.utils.settings import GRID_SIZE
 
 class Snake:
     def __init__(self):
-        self.body = [(7, 7)]  # Start in middle of grid
+        self.body = [(GRID_SIZE // 2, GRID_SIZE // 2)]  # Start in middle of grid
         self.direction = "RIGHT"
         self.turns = 0  # Track direction changes
         self.growing = False
+        self.has_eaten = False  # Flag for tracking food consumption
     
     def set_direction(self, new_direction):
         if new_direction != self.direction:
@@ -41,8 +42,8 @@ class Snake:
         if not (0 <= new_head[0] < GRID_SIZE and 0 <= new_head[1] < GRID_SIZE):
             return False
         
-        # Check for collisions with self
-        if new_head in self.body:
+        # Check for collisions with self (excluding tail if not growing)
+        if new_head in self.body[:-1] or (new_head in self.body and not self.growing):
             return False
         
         # Add new head
@@ -53,6 +54,7 @@ class Snake:
             self.body.pop()
         else:
             self.growing = False
+            self.has_eaten = True  # Set eaten flag when growing
         
         return True
     

@@ -9,19 +9,16 @@ class AlgorithmManager:
         
         # Default algorithms list
         self.algorithms = [
-            ("🎯 A* Pathfinding", "astar", "Optimal path finding to food"),
+            ("🚀 A* Pathfinding", "astar", "Optimal path finding to food"),
             ("🌊 BFS Pathfinding", "bfs", "Breadth-first search for shortest path"),
-            ("🔄 Advanced Hamiltonian", "advanced_hamiltonian", "Optimized safe path"),
-            ("🤖 Hybrid A*/Hamiltonian", "hybrid", "Adaptive strategy switching"),
-            ("🔍 DFS Exploration", "dfs", "Depth-first exploration"),
+            ("🔗 Advanced Hamiltonian", "advanced_hamiltonian", "Optimized safe path"),
+            ("🔀 Hybrid A*/Hamiltonian", "hybrid", "Adaptive strategy switching"),
             ("🎲 Random Walk", "random", "Random valid moves"),
-            ("⚡ Greedy Best-First", "greedy", "Always moves towards food"),
-            ("🌐 Dijkstra", "dijkstra", "Finds shortest path by exploring all directions"),
-            ("🧱 Wall Follower", "wall_follower", "Follows walls and edges of the grid"),
-            ("🎮 Smart Hybrid", "smart_hybrid", "Combines A* and Wall Following adaptively"),
-            ("🧬 Genetic Algorithm", "genetic", "Evolves behavior through generations"),
-            ("🌟 Perfect AI", "perfect", "Combines A* with Hamiltonian cycle and safe shortcuts"),
-            ("🔄 Reverse A*", "reverse_astar", "Finds longest valid path to food"),
+            ("💡 Greedy Best-First", "greedy", "Always moves towards food"),
+            ("🧭 Dijkstra", "dijkstra", "Finds shortest path by exploring all directions"),
+            ("🧠 Smart Hybrid", "smart_hybrid", "Combines A* and Wall Following adaptively"),
+            ("🔬 Perfect AI", "perfect", "Combines A* with Hamiltonian cycle and safe shortcuts"),
+            ("🔙 Reverse A*", "reverse_astar", "Finds longest valid path to food"),
         ]
         
         self.algorithms_scroll = None

@@ -12,8 +12,32 @@ class SimulationResults(ctk.CTkToplevel):
         super().__init__(parent)
         self.title("Simulation Results")
         self.geometry("1400x900")
+        
+        if not results:
+            self._show_error("No simulation results available")
+            return
+            
         self.results = results
         self._create_widgets()
+    
+    def _show_error(self, message):
+        """Display error message when results cannot be shown"""
+        container = ctk.CTkFrame(self)
+        container.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        error_label = ctk.CTkLabel(
+            container,
+            text="⚠️ " + message,
+            font=ctk.CTkFont(size=16)
+        )
+        error_label.pack(pady=20)
+        
+        close_button = ctk.CTkButton(
+            container,
+            text="Close",
+            command=self.destroy
+        )
+        close_button.pack(pady=10)
     
     def _create_widgets(self):
         container = ctk.CTkFrame(self)
@@ -26,8 +50,12 @@ class SimulationResults(ctk.CTkToplevel):
         )
         title.pack(pady=(0, 30))
         
-        self._create_plots(container)
-        self._create_save_button(container)
+        try:
+            self._create_plots(container)
+            self._create_save_button(container)
+        except Exception as e:
+            logging.error(f"Error creating plots: {str(e)}")
+            self._show_error(f"Error creating plots: {str(e)}")
     
     def _create_plots(self, container):
         plt.style.use('dark_background')
@@ -50,6 +78,7 @@ class SimulationResults(ctk.CTkToplevel):
         
         avg_scores = [self.results[algo]['avg'] for algo in algorithms]
         max_scores = [self.results[algo]['max'] for algo in algorithms]
+        failed_runs = [self.results[algo].get('failed_runs', 0) for algo in algorithms]
         
         x = np.arange(len(clean_names))
         width = 0.35
@@ -60,9 +89,13 @@ class SimulationResults(ctk.CTkToplevel):
                       color='#2ecc71', alpha=0.8)
         
         def autolabel(bars):
-            for bar in bars:
+            for i, bar in enumerate(bars):
                 height = bar.get_height()
-                ax.annotate(f'{int(height)}',
+                failed = failed_runs[i]
+                label = f'{int(height)}'
+                if failed > 0:
+                    label += f'\n({failed} failed)'
+                ax.annotate(label,
                           xy=(bar.get_x() + bar.get_width() / 2, height),
                           xytext=(0, 3),
                           textcoords="offset points",
@@ -83,75 +116,93 @@ class SimulationResults(ctk.CTkToplevel):
     def _plot_algorithm_rankings(self, ax):
         ax.set_facecolor('#1E1E1E')
         
-        # Find global maximum score for fair comparison
-        global_max_score = max(
-            max(data['scores'])
-            for data in self.results.values()
-        )
-        
-        # Calculate algorithm scores
-        algorithm_scores = []
-        for algo in self.results.keys():
-            data = self.results[algo]
-            avg_score = data['avg']
-            max_score = data['max']
+        try:
+            # Find global maximum score for fair comparison
+            global_max_score = max(
+                max(data['scores'])
+                for data in self.results.values()
+                if data['scores']  # Check for non-empty scores
+            )
             
-            # Calculate consistency based on coefficient of variation
-            cv = data['std'] / (avg_score if avg_score > 0 else 1)
-            consistency = 1 - min(cv, 1)  # Cap at 1 to prevent negative scores
+            if global_max_score == 0:
+                global_max_score = 1  # Prevent division by zero
             
-            # Calculate overall score using global maximum
-            overall_score = (
-                0.5 * (avg_score / global_max_score) +  # Increased weight on actual performance
-                0.3 * (max_score / global_max_score) +  # Slightly reduced weight on max score
-                0.2 * consistency                       # Keep consistency weight
-            ) * 100
+            # Calculate algorithm scores
+            algorithm_scores = []
+            for algo in self.results.keys():
+                data = self.results[algo]
+                avg_score = data['avg']
+                max_score = data['max']
+                failed_runs = data.get('failed_runs', 0)
+                
+                # Calculate consistency based on coefficient of variation and failed runs
+                cv = data['std'] / (avg_score if avg_score > 0 else 1)
+                failure_penalty = failed_runs / len(data['scores'])
+                consistency = (1 - min(cv, 1)) * (1 - failure_penalty)
+                
+                # Calculate overall score using global maximum
+                overall_score = (
+                    0.5 * (avg_score / global_max_score) +  # Increased weight on actual performance
+                    0.3 * (max_score / global_max_score) +  # Slightly reduced weight on max score
+                    0.2 * consistency                       # Keep consistency weight
+                ) * 100
+                
+                algorithm_scores.append({
+                    'name': algo.split(' ', 1)[1],
+                    'score': overall_score,
+                    'avg_score': avg_score,
+                    'max_score': max_score,
+                    'consistency': consistency * 100,
+                    'failed_runs': failed_runs
+                })
             
-            algorithm_scores.append({
-                'name': algo.split(' ', 1)[1],
-                'score': overall_score,
-                'avg_score': avg_score,
-                'max_score': max_score,
-                'consistency': consistency * 100
-            })
-        
-        algorithm_scores.sort(key=lambda x: x['score'], reverse=True)
-        
-        names = [score['name'] for score in algorithm_scores]
-        scores = [score['score'] for score in algorithm_scores]
-        
-        colors = ['#3498db', '#2ecc71', '#e74c3c', '#f1c40f', '#9b59b6', 
-                 '#1abc9c', '#e67e22', '#34495e', '#7f8c8d', '#c0392b']
-        
-        bars = ax.barh(np.arange(len(names)), scores, 
-                      color=[colors[i % len(colors)] for i in range(len(names))],
-                      alpha=0.8)
-        
-        for i, bar in enumerate(bars):
-            width = bar.get_width()
-            ax.text(width + 1, bar.get_y() + bar.get_height()/2,
-                   f'{scores[i]:.1f}%',
-                   va='center', color='white')
-        
-        ax.set_title('Algorithm Rankings', color='white', pad=20, fontsize=16)
-        ax.set_yticks(np.arange(len(names)))
-        ax.set_yticklabels(names)
-        ax.set_xlim(0, 105)
-        ax.grid(True, alpha=0.2)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        
-        criteria_text = "Ranking Criteria:\n" + \
-                       "• 50% Average Score\n" + \
-                       "• 30% Max Score\n" + \
-                       "• 20% Consistency"
-        
-        props = dict(boxstyle='round', facecolor='#2C3E50', alpha=0.8)
-        ax.text(1.02, 0.02, criteria_text,
-                transform=ax.transAxes,
-                fontsize=10,
-                verticalalignment='bottom',
-                bbox=props)
+            algorithm_scores.sort(key=lambda x: x['score'], reverse=True)
+            
+            names = [score['name'] for score in algorithm_scores]
+            scores = [score['score'] for score in algorithm_scores]
+            
+            colors = ['#3498db', '#2ecc71', '#e74c3c', '#f1c40f', '#9b59b6', 
+                     '#1abc9c', '#e67e22', '#34495e', '#7f8c8d', '#c0392b']
+            
+            bars = ax.barh(np.arange(len(names)), scores, 
+                          color=[colors[i % len(colors)] for i in range(len(names))],
+                          alpha=0.8)
+            
+            for i, bar in enumerate(bars):
+                width = bar.get_width()
+                failed = algorithm_scores[i]['failed_runs']
+                label = f'{scores[i]:.1f}%'
+                if failed > 0:
+                    label += f' ({failed} failed)'
+                ax.text(width + 1, bar.get_y() + bar.get_height()/2,
+                       label, va='center', color='white')
+            
+            ax.set_title('Algorithm Rankings', color='white', pad=20, fontsize=16)
+            ax.set_yticks(np.arange(len(names)))
+            ax.set_yticklabels(names)
+            ax.set_xlim(0, 105)
+            ax.grid(True, alpha=0.2)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            
+            criteria_text = "Ranking Criteria:\n" + \
+                           "• 50% Average Score\n" + \
+                           "• 30% Max Score\n" + \
+                           "• 20% Consistency\n\n" + \
+                           "Note: Failed runs affect\n" + \
+                           "consistency score"
+            
+            props = dict(boxstyle='round', facecolor='#2C3E50', alpha=0.8)
+            ax.text(1.02, 0.02, criteria_text,
+                    transform=ax.transAxes,
+                    fontsize=10,
+                    verticalalignment='bottom',
+                    bbox=props)
+                    
+        except Exception as e:
+            logging.error(f"Error plotting rankings: {str(e)}")
+            ax.text(0.5, 0.5, f"Error plotting rankings:\n{str(e)}",
+                   ha='center', va='center', color='red')
     
     def _create_save_button(self, container):
         save_button = ctk.CTkButton(

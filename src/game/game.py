@@ -9,18 +9,32 @@ from src.utils.input_handler import InputHandler
 from src.ui.renderer import Renderer
 from src.game.game_state import GameState
 from src.ui.game_stats import GameStats
+from src.ai import AI_ALGORITHMS
+import os
+import random
 
 class Game:
-    def __init__(self, start_with_ai=False, ai_algorithm="astar", speed=10, headless=False, genetic_individual=None):
+    def __init__(self, start_with_ai=False, ai_algorithm="astar", speed=10, headless=False, genetic_individual=None, max_steps_multiplier=1):
+        # Set SDL to use dummy video driver for headless mode
+        if headless:
+            os.environ["SDL_VIDEODRIVER"] = "dummy"
+        
+        # Initialize pygame (needed for timing even in headless mode)
+        pygame.init()
+        
         self.headless = headless
         self.moves = 0  # Track number of moves for genetic fitness
+        self.max_steps_multiplier = max_steps_multiplier
         
         if not self.headless:
-            pygame.init()
             self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
             pygame.display.set_caption("Snake Game")
             self.clock = pygame.time.Clock()
             self.renderer = Renderer(self.screen)
+        else:
+            # Create a dummy surface for headless mode
+            self.screen = pygame.Surface((WINDOW_SIZE, WINDOW_SIZE))
+            self.clock = pygame.time.Clock()
         
         # Initialize components
         self.snake = Snake()
@@ -146,9 +160,90 @@ class Game:
 
     def run_headless(self):
         """Run the game without rendering for simulation purposes"""
+        # Ensure AI is initialized
+        if not self.input_handler.current_ai and self.input_handler.current_ai_name:
+            ai_class = AI_ALGORITHMS[self.input_handler.current_ai_name]
+            self.input_handler.current_ai = ai_class()
+            
+        if self.headless:
+            return self.run_fast_simulation()
+        else:
+            # For single AI games, use normal rendering
+            return self.run()
+
+    def run_fast_simulation(self):
+        """Ultra-fast simulation without pygame or rendering"""
+        score = 0
+        snake_body = [(GRID_SIZE // 2, GRID_SIZE // 2)]  # Start in middle
+        food_pos = (GRID_SIZE - 5, GRID_SIZE - 5)  # Initial food position
+        growing = False
+        
+        try:
+            while True:  # Run until snake dies or can't continue
+                # Get AI's next move using the current_ai instance
+                if not self.input_handler.current_ai:
+                    raise Exception("No AI algorithm initialized")
+                    
+                dx, dy = self.input_handler.current_ai.get_next_move(
+                    snake_body[0],  # snake head
+                    food_pos,       # food position
+                    snake_body      # full snake body
+                )
+                
+                # Calculate new head position
+                new_head = (snake_body[0][0] + dx, snake_body[0][1] + dy)
+                
+                # Check wall collision
+                if not (0 <= new_head[0] < GRID_SIZE and 0 <= new_head[1] < GRID_SIZE):
+                    break
+                
+                # Check self collision (excluding tail if not growing)
+                if new_head in snake_body[:-1] or (new_head in snake_body and not growing):
+                    break
+                
+                # Move snake
+                snake_body.insert(0, new_head)
+                if not growing:
+                    snake_body.pop()
+                growing = False
+                
+                # Check food collision
+                if new_head == food_pos:
+                    score += 1
+                    growing = True
+                    
+                    # Generate new food position
+                    available_positions = [
+                        (x, y) for x in range(GRID_SIZE) for y in range(GRID_SIZE)
+                        if (x, y) not in snake_body
+                    ]
+                    if available_positions:
+                        # Try to place food away from snake head
+                        distant_positions = [
+                            pos for pos in available_positions
+                            if abs(pos[0] - new_head[0]) + abs(pos[1] - new_head[1]) > 3
+                        ]
+                        food_pos = random.choice(distant_positions if distant_positions else available_positions)
+                    else:
+                        break  # No space left for food
+            
+            return score
+            
+        except Exception as e:
+            logging.error(f"Error in fast simulation: {str(e)}")
+            logging.error(traceback.format_exc())
+            return score
+
+    def run_normal_headless(self):
+        """Original headless mode with pygame (slower but more accurate)"""
         logging.debug("Starting headless game run")
-        max_steps = 1000  # Prevent infinite loops
+        
+        # Calculate max steps based on grid size and multiplier
+        base_max_steps = GRID_SIZE * GRID_SIZE * 4  # Base max steps is 4 times the grid area
+        max_steps = base_max_steps * self.max_steps_multiplier
         steps = 0
+        steps_without_food = 0  # Track steps without eating food
+        max_steps_without_food = GRID_SIZE * 3  # Maximum steps allowed without eating
         
         try:
             while not self.game_state.game_over and steps < max_steps:
@@ -160,10 +255,27 @@ class Game:
                     logging.debug(f"Game over: Snake collision at step {steps}")
                     self.game_state.game_over = True
                 else:
+                    old_score = self.game_state.score
                     self.game_state.update(self.snake, self.food)
+                    
+                    # Check if food was eaten
+                    if self.game_state.score > old_score:
+                        steps_without_food = 0
+                        # Spawn food away from current position
+                        self.food.spawn(self.snake.body)
+                    else:
+                        steps_without_food += 1
+                        
+                        # End game if snake hasn't eaten for too long
+                        if steps_without_food >= max_steps_without_food:
+                            logging.debug(f"Game over: No food eaten for {steps_without_food} steps")
+                            self.game_state.game_over = True
                 
                 steps += 1
                 self.moves = steps
+                
+                # Maintain consistent game speed
+                self.clock.tick(self.current_speed)
                 
                 if steps >= max_steps:
                     logging.debug("Game reached maximum steps")
