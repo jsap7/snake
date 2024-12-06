@@ -1,76 +1,66 @@
 import customtkinter as ctk
-from src.game.game import Game
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import numpy as np
-import json
-from datetime import datetime
-import os
 import logging
 import traceback
 import queue
 import threading
-from src.ai.genetic_population import GeneticPopulation
+from src.game.game import Game
+from src.ui.components.progress_window import SimulationProgress
+from src.ui.components.simulation_manager import SimulationManager
+from src.ui.components.results_window import SimulationResults
+from src.ui.components.training_manager import TrainingManager
+from src.ui.components.dialog_manager import DialogManager
+from src.ui.components.algorithm_manager import AlgorithmManager
+from src.ui.components.training_view import TrainingView
+from src.ui.components.training_progress import TrainingProgress
 
-# Configure logging - disable matplotlib font debugging
+# Configure logging
 logging.getLogger('matplotlib.font_manager').disabled = True
 logging.basicConfig(
-    level=logging.INFO,  # Change to INFO level
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('simulation.log'),
     ]
 )
-# Disable matplotlib font debugging
 logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 
 class GameLauncher:
+    # Initialization methods
     def __init__(self):
         logging.info("Initializing GameLauncher")
-        self.result_queue = queue.Queue()
+        self._setup_window()
+        self._init_variables()
+        self._init_managers()
+        self.create_widgets()
+        logging.info("GameLauncher initialized successfully")
+    
+    def _setup_window(self):
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("dark-blue")
         
         self.root = ctk.CTk()
         self.root.title("Snake Game Launcher")
-        self.root.geometry("1300x700")
+        self.root.geometry("1300x900")
         self.root.resizable(False, False)
-        
-        # Variables
+    
+    def _init_variables(self):
+        self.result_queue = queue.Queue()
         self.control_mode = ctk.StringVar(value="human")
         self.algorithm = ctk.StringVar(value="astar")
         self.speed = ctk.IntVar(value=10)
         self.num_simulations = ctk.IntVar(value=10)
         self.simulation_results = {}
         
-        # Genetic Algorithm variables
-        self.genetic_population = None
-        self.population_size = ctk.IntVar(value=50)
-        self.generation_limit = ctk.IntVar(value=20)
-        
-        # Store algorithms list as class variable
-        self.algorithms = [
-            ("🎯 A* Pathfinding", "astar", "Optimal path finding to food"),
-            ("🌊 BFS Pathfinding", "bfs", "Breadth-first search for shortest path"),
-            ("🔄 Advanced Hamiltonian", "advanced_hamiltonian", "Optimized safe path"),
-            ("🤖 Hybrid A*/Hamiltonian", "hybrid", "Adaptive strategy switching"),
-            ("🔍 DFS Exploration", "dfs", "Depth-first exploration"),
-            ("🎲 Random Walk", "random", "Random valid moves"),
-            ("⚡ Greedy Best-First", "greedy", "Always moves towards food"),
-            ("🌐 Dijkstra", "dijkstra", "Finds shortest path by exploring all directions"),
-            ("🧱 Wall Follower", "wall_follower", "Follows walls and edges of the grid"),
-            ("🎮 Smart Hybrid", "smart_hybrid", "Combines A* and Wall Following adaptively"),
-            ("🧬 Genetic Algorithm", "genetic", "Evolves behavior through generations"),
-            ("🌟 Perfect AI", "perfect", "Combines A* with Hamiltonian cycle and safe shortcuts"),
-        ]
-        
         # Clear simulation log file
         with open("simulation.log", "w") as f:
-            f.write("")  # Clear the file
-        
-        self.create_widgets()
-        logging.info("GameLauncher initialized successfully")
+            f.write("")
     
+    def _init_managers(self):
+        self.dialog_manager = DialogManager(self.root)
+        self.algorithm_manager = None  # Will be initialized in create_widgets
+        self.training_view = None      # Will be initialized in create_widgets
+    
+    # UI Creation and Update Methods
     def create_widgets(self):
         # Main container
         container = ctk.CTkFrame(self.root)
@@ -203,57 +193,6 @@ class GameLauncher:
         )
         sim_slider.pack(fill="x", padx=(10, 10))
         
-        # Training Settings Frame
-        self.training_frame = ctk.CTkFrame(left_column)
-        self.training_frame.pack(fill="x", pady=(0, 20))
-        
-        training_label = ctk.CTkLabel(
-            self.training_frame,
-            text="Training Settings",
-            font=ctk.CTkFont(size=16, weight="bold")
-        )
-        training_label.pack(pady=(10, 5))
-        
-        # Population Size
-        pop_frame = ctk.CTkFrame(self.training_frame)
-        pop_frame.pack(fill="x", padx=20, pady=5)
-        
-        self.pop_label = ctk.CTkLabel(
-            pop_frame,
-            text="Population: 50",
-            font=ctk.CTkFont(size=14)
-        )
-        self.pop_label.pack(side="right", padx=10)
-        
-        pop_slider = ctk.CTkSlider(
-            pop_frame,
-            from_=10,
-            to=100,
-            variable=self.population_size,
-            command=self.update_pop_label
-        )
-        pop_slider.pack(fill="x", padx=(10, 10))
-        
-        # Generation Limit
-        gen_frame = ctk.CTkFrame(self.training_frame)
-        gen_frame.pack(fill="x", padx=20, pady=5)
-        
-        self.gen_label = ctk.CTkLabel(
-            gen_frame,
-            text="Generations: 20",
-            font=ctk.CTkFont(size=14)
-        )
-        self.gen_label.pack(side="right", padx=10)
-        
-        gen_slider = ctk.CTkSlider(
-            gen_frame,
-            from_=5,
-            to=50,
-            variable=self.generation_limit,
-            command=self.update_gen_label
-        )
-        gen_slider.pack(fill="x", padx=(10, 10))
-        
         # Right Column - AI Algorithms
         right_column = ctk.CTkFrame(columns_frame)
         right_column.pack(side="left", fill="both", expand=True, padx=(10, 0))
@@ -265,39 +204,13 @@ class GameLauncher:
         )
         algorithms_label.pack(pady=(10, 5))
         
-        # Store algorithms_scroll as instance variable
-        self.algorithms_scroll = ctk.CTkScrollableFrame(
-            right_column,
-            height=350,
-            width=600  # Increased width
-        )
-        self.algorithms_scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        # Initialize algorithm manager first
+        self.algorithm_manager = AlgorithmManager(right_column, self.algorithm)
         
-        self.radio_buttons = []
-        
-        for text, value, desc in self.algorithms:
-            frame = ctk.CTkFrame(self.algorithms_scroll)  # Use self.algorithms_scroll
-            frame.pack(fill="x", pady=5)
-            
-            radio = ctk.CTkRadioButton(
-                frame,
-                text=text,
-                variable=self.algorithm,
-                value=value,
-                font=ctk.CTkFont(size=14),
-                width=200  # Fixed width for radio buttons
-            )
-            radio.pack(side="left", padx=10)
-            
-            desc_label = ctk.CTkLabel(
-                frame,
-                text=desc,
-                font=ctk.CTkFont(size=12),
-                wraplength=350,  # Increased wraplength
-                justify="left"   # Ensure left alignment
-            )
-            desc_label.pack(side="left", padx=(5, 10), fill="x", expand=True)
-            self.radio_buttons.append(radio)
+        # Now initialize training view and add its frame to left column
+        self.training_view = TrainingView(self.root, self.dialog_manager, self.algorithm_manager)
+        self.training_frame = self.training_view.training_frame
+        self.training_frame.pack(in_=left_column, fill="x", pady=(0, 20))
         
         # Buttons Frame
         self.buttons_frame = ctk.CTkFrame(container)
@@ -337,6 +250,9 @@ class GameLauncher:
             hover_color="#1F5817"
         )
         
+        # Store train button reference in training view
+        self.training_view.train_button = self.train_button
+        
         # Initial state
         self.toggle_options()
     
@@ -346,12 +262,6 @@ class GameLauncher:
     def update_sim_label(self, value):
         self.sim_count_label.configure(text=f"{int(float(value))} games per AI")
     
-    def update_pop_label(self, value):
-        self.pop_label.configure(text=f"Population: {int(float(value))}")
-    
-    def update_gen_label(self, value):
-        self.gen_label.configure(text=f"Generations: {int(float(value))}")
-    
     def toggle_options(self):
         """Update UI based on selected mode"""
         mode = self.control_mode.get()
@@ -360,30 +270,41 @@ class GameLauncher:
         for widget in self.buttons_frame.winfo_children():
             widget.pack_forget()
         
-        # Toggle AI algorithm selection
+        # Update algorithm buttons state
         ai_state = "normal" if mode == "ai" else "disabled"
-        for radio in self.radio_buttons:
-            radio.configure(state=ai_state)
+        self.algorithm_manager.set_buttons_state(ai_state)
         
         # Toggle simulation settings
         sim_state = "normal" if mode == "simulation" else "disabled"
         for widget in self.sim_frame.winfo_children():
-            if isinstance(widget, (ctk.CTkSlider, ctk.CTkLabel, ctk.CTkFrame)):
+            if isinstance(widget, (ctk.CTkSlider, ctk.CTkLabel)):  # Remove CTkFrame
                 try:
                     widget.configure(state=sim_state)
-                except ValueError:
-                    for child in widget.winfo_children():
-                        child.configure(state=sim_state)
+                except (ValueError, AttributeError):
+                    continue
+            elif isinstance(widget, ctk.CTkFrame):
+                for child in widget.winfo_children():
+                    if isinstance(child, (ctk.CTkSlider, ctk.CTkLabel)):
+                        try:
+                            child.configure(state=sim_state)
+                        except (ValueError, AttributeError):
+                            continue
         
         # Toggle training settings
         train_state = "normal" if mode == "training" else "disabled"
         for widget in self.training_frame.winfo_children():
-            if isinstance(widget, (ctk.CTkSlider, ctk.CTkLabel, ctk.CTkFrame)):
+            if isinstance(widget, (ctk.CTkSlider, ctk.CTkLabel)):  # Remove CTkFrame
                 try:
                     widget.configure(state=train_state)
-                except ValueError:
-                    for child in widget.winfo_children():
-                        child.configure(state=train_state)
+                except (ValueError, AttributeError):
+                    continue
+            elif isinstance(widget, ctk.CTkFrame):
+                for child in widget.winfo_children():
+                    if isinstance(child, (ctk.CTkSlider, ctk.CTkLabel)):
+                        try:
+                            child.configure(state=train_state)
+                        except (ValueError, AttributeError):
+                            continue
         
         # Show appropriate buttons based on mode
         if mode in ["human", "ai"]:
@@ -393,226 +314,7 @@ class GameLauncher:
         elif mode == "training":
             self.train_button.pack(side="left", padx=10)
     
-    def start_training(self):
-        """Start genetic algorithm training"""
-        from src.ai.genetic_population import GeneticPopulation
-        
-        self.genetic_population = GeneticPopulation(population_size=self.population_size.get())
-        progress_window = self.create_progress_window(self.generation_limit.get())
-        
-        def train():
-            try:
-                for generation in range(self.generation_limit.get()):
-                    # Train each individual in the population
-                    for i in range(self.genetic_population.population_size):
-                        individual = self.genetic_population.population[i]
-                        game = Game(
-                            start_with_ai=True,
-                            ai_algorithm="genetic",
-                            speed=30,
-                            headless=True,
-                            genetic_individual=individual
-                        )
-                        score = game.run_headless()
-                        individual.update_fitness(score, game.moves)
-                    
-                    # Evolve population
-                    self.genetic_population.evolve()
-                    
-                    # Update progress
-                    progress = ((generation + 1) / self.generation_limit.get()) * 100
-                    self.root.after(0, lambda p=progress: progress_window.update_progress(p))
-                    
-                    # Update generation info
-                    info = self.genetic_population.get_generation_info()
-                    logging.info(f"Generation {info['generation']}: Best Fitness = {info['best_fitness_ever']}")
-                
-                # Training complete - save the model
-                self.root.after(0, lambda: [
-                    progress_window.destroy(),
-                    self.save_trained_model(),  # Save the model
-                    self.show_training_results()
-                ])
-                
-            except Exception as e:
-                logging.error(f"Training error: {str(e)}")
-                logging.error(traceback.format_exc())
-                self.root.after(0, lambda: [progress_window.destroy(), self.show_error_dialog(str(e))])
-            finally:
-                self.root.after(0, self.enable_buttons)
-        
-        # Disable buttons during training
-        self.game_button.configure(state="disabled")
-        self.train_button.configure(state="disabled")
-        
-        # Start training thread
-        train_thread = threading.Thread(target=train)
-        train_thread.daemon = True
-        train_thread.start()
-    
-    def save_trained_model(self):
-        """Save trained genetic algorithm model"""
-        if not os.path.exists('trained_models'):
-            os.makedirs('trained_models')
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        model_name = f"genetic_model_{timestamp}"
-        
-        # Save model weights
-        model_path = f"trained_models/{model_name}.json"
-        model_data = {
-            'weights': self.genetic_population.best_individual.weights,
-            'fitness': self.genetic_population.best_fitness,
-            'generation': self.genetic_population.generation
-        }
-        
-        with open(model_path, 'w') as f:
-            json.dump(model_data, f, indent=4)
-        
-        logging.info(f"Saved trained model to {model_path}")
-        
-        # Add model to AI algorithms list
-        new_algo = (
-            f"🧠 Trained GA {timestamp}", 
-            f"trained_ga_{timestamp}", 
-            f"Trained genetic algorithm (fitness: {self.genetic_population.best_fitness:.0f})"
-        )
-        self.algorithms.append(new_algo)
-        
-        # Add new radio button to algorithms scroll frame
-        frame = ctk.CTkFrame(self.algorithms_scroll)
-        frame.pack(fill="x", pady=5)
-        
-        radio = ctk.CTkRadioButton(
-            frame,
-            text=new_algo[0],
-            variable=self.algorithm,
-            value=new_algo[1],
-            font=ctk.CTkFont(size=14),
-            width=200
-        )
-        radio.pack(side="left", padx=10)
-        
-        desc_label = ctk.CTkLabel(
-            frame,
-            text=new_algo[2],
-            font=ctk.CTkFont(size=12),
-            wraplength=350,
-            justify="left"
-        )
-        desc_label.pack(side="left", padx=(5, 10), fill="x", expand=True)
-        
-        self.radio_buttons.append(radio)
-        
-        # Show success message
-        self.show_message("Success", f"Model saved as {model_name}")
-    
-    def show_training_results(self):
-        """Show the results of genetic algorithm training"""
-        results_window = ctk.CTkToplevel(self.root)
-        results_window.title("Training Results")
-        results_window.geometry("1000x800")
-        
-        # Create main container
-        container = ctk.CTkFrame(results_window)
-        container.pack(fill="both", expand=True, padx=20, pady=20)
-        
-        # Title
-        title = ctk.CTkLabel(
-            container,
-            text="🎮 Genetic Algorithm Training Results",
-            font=ctk.CTkFont(size=28, weight="bold")
-        )
-        title.pack(pady=(0, 30))
-        
-        # Create plots
-        plt.style.use('dark_background')
-        fig = plt.figure(figsize=(14, 10))
-        fig.patch.set_facecolor('#1E1E1E')
-        
-        # Plot fitness over generations
-        generations = [stat['generation'] for stat in self.genetic_population.generation_stats]
-        best_fitness = [stat['best_fitness'] for stat in self.genetic_population.generation_stats]
-        avg_fitness = [stat['avg_fitness'] for stat in self.genetic_population.generation_stats]
-        
-        ax1 = plt.subplot(2, 1, 1)
-        ax1.plot(generations, best_fitness, label='Best Fitness', color='#2ecc71')
-        ax1.plot(generations, avg_fitness, label='Average Fitness', color='#3498db')
-        ax1.set_title('Fitness Over Generations', color='white', pad=20)
-        ax1.set_xlabel('Generation', color='white')
-        ax1.set_ylabel('Fitness', color='white')
-        ax1.legend()
-        ax1.grid(True, alpha=0.2)
-        
-        # Plot best individual's weights
-        best = self.genetic_population.best_individual
-        if best:
-            ax2 = plt.subplot(2, 1, 2)
-            weights = list(best.weights.values())
-            labels = list(best.weights.keys())
-            x = np.arange(len(labels))
-            ax2.bar(x, weights, color='#e74c3c')
-            ax2.set_title('Best Individual Weights', color='white', pad=20)
-            ax2.set_xticks(x)
-            ax2.set_xticklabels(labels, rotation=45)
-            ax2.grid(True, alpha=0.2)
-        
-        plt.tight_layout()
-        
-        # Embed plot
-        canvas = FigureCanvasTkAgg(fig, master=container)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill="both", expand=True, pady=(0, 20))
-        
-        # Save best individual button
-        save_button = ctk.CTkButton(
-            container,
-            text="💾 Save Best Individual",
-            font=ctk.CTkFont(size=14),
-            command=self.save_best_individual,
-            width=200,
-            height=35
-        )
-        save_button.pack(pady=10)
-    
-    def save_best_individual(self):
-        """Save the best individual's weights to a file"""
-        if self.genetic_population and self.genetic_population.best_individual:
-            if not os.path.exists('genetic_models'):
-                os.makedirs('genetic_models')
-            
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"genetic_models/best_individual_{timestamp}.json"
-            
-            with open(filename, 'w') as f:
-                json.dump({
-                    'weights': self.genetic_population.best_individual.weights,
-                    'fitness': self.genetic_population.best_fitness,
-                    'generation': self.genetic_population.generation
-                }, f, indent=4)
-            
-            self.show_message("Success", f"Best individual saved to {filename}")
-    
-    def show_message(self, title, message):
-        """Show a message dialog"""
-        dialog = ctk.CTkToplevel(self.root)
-        dialog.title(title)
-        dialog.geometry("400x200")
-        
-        label = ctk.CTkLabel(
-            dialog,
-            text=message,
-            wraplength=350
-        )
-        label.pack(pady=20, padx=20)
-        
-        ok_button = ctk.CTkButton(
-            dialog,
-            text="OK",
-            command=dialog.destroy
-        )
-        ok_button.pack(pady=20)
-    
+    # Game Control Methods
     def start_game(self):
         self.root.withdraw()
         game = Game(
@@ -624,75 +326,53 @@ class GameLauncher:
         self.root.deiconify()
     
     def start_simulation(self):
-        import threading
         logging.info("Starting simulation process")
+        sim_manager = SimulationManager(
+            self.root,
+            self.algorithm_manager.algorithms,
+            self.num_simulations.get()
+        )
         
         def run_sim():
             try:
-                logging.info("Simulation thread started")
-                self.simulation_results = {}
-                total_sims = len(self.algorithms) * self.num_simulations.get()
-                logging.info(f"Planning to run {total_sims} total simulations")
+                self.root.after(0, lambda: self.create_and_store_progress_window(
+                    len(self.algorithm_manager.algorithms) * self.num_simulations.get()
+                ))
                 
-                # Create progress window in main thread
-                self.root.after(0, lambda: self.create_and_store_progress_window(total_sims))
+                result_type, result_data = sim_manager.run_simulation(
+                    lambda p: self.root.after(0, lambda: self.update_progress(p))
+                )
                 
-                for algo_name, algo_id, _ in self.algorithms:
-                    logging.info(f"Starting simulations for algorithm: {algo_id}")
-                    scores = []
-                    
-                    for i in range(self.num_simulations.get()):
-                        logging.debug(f"Running simulation {i+1} for {algo_id}")
-                        try:
-                            game = Game(
-                                start_with_ai=True,
-                                ai_algorithm=algo_id,
-                                speed=30,
-                                headless=True
-                            )
-                            score = game.run_headless()
-                            scores.append(score)
-                            
-                            # Calculate progress
-                            progress = ((len(scores) + (self.algorithms.index((algo_name, algo_id, _)) * 
-                                       self.num_simulations.get())) / total_sims) * 100
-                            
-                            # Update progress in main thread
-                            self.root.after(0, lambda p=progress: self.update_progress(p))
-                            
-                        except Exception as e:
-                            logging.error(f"Error in simulation {i+1} for {algo_id}: {str(e)}")
-                            logging.error(traceback.format_exc())
-                            continue
-                    
-                    if scores:
-                        self.simulation_results[algo_name] = {
-                            'scores': scores,
-                            'avg': np.mean(scores),
-                            'max': np.max(scores)
-                        }
-                        logging.info(f"Results for {algo_id}: Avg={np.mean(scores):.2f}, Max={np.max(scores)}")
-                
-                logging.info("All simulations completed successfully")
-                # Put results in queue for main thread to handle
-                self.result_queue.put(("success", self.simulation_results))
+                self.result_queue.put((result_type, result_data))
                 
             except Exception as e:
                 logging.error(f"Critical simulation error: {str(e)}")
                 logging.error(traceback.format_exc())
                 self.result_queue.put(("error", str(e)))
         
-        # Disable buttons during simulation
         self.train_button.configure(state="disabled")
         self.game_button.configure(state="disabled")
         
-        # Start simulation thread
         sim_thread = threading.Thread(target=run_sim)
         sim_thread.daemon = True
         sim_thread.start()
         
-        # Start checking for results
         self.root.after(100, self.check_simulation_results)
+    
+    def start_training(self):
+        """Start genetic algorithm training"""
+        trainer = TrainingManager(
+            population_size=self.training_view.population_size.get(),
+            generation_limit=self.training_view.generation_limit.get()
+        )
+        
+        progress_window = self.create_progress_window(self.training_view.generation_limit.get())
+        self.training_view.start_training(trainer, progress_window)
+    
+    # Progress Tracking Methods
+    def create_progress_window(self, total_generations):
+        """Create a progress window for training"""
+        return TrainingProgress(self.root, total_generations)
     
     def create_and_store_progress_window(self, total_sims):
         self.progress_window = SimulationProgress(self.root, total_sims)
@@ -701,6 +381,7 @@ class GameLauncher:
         if hasattr(self, 'progress_window'):
             self.progress_window.update_progress(progress)
     
+    # Results Handling Methods
     def check_simulation_results(self):
         try:
             result_type, result_data = self.result_queue.get_nowait()
@@ -712,206 +393,22 @@ class GameLauncher:
                 self.simulation_results = result_data
                 self.show_simulation_results()
             else:
-                self.show_error_dialog(result_data)
+                self.dialog_manager.show_error(result_data)
             
-            # Re-enable buttons
-            self.train_button.configure(state="normal")
-            self.game_button.configure(state="normal")
+            self.enable_buttons()
             
         except queue.Empty:
-            # No result yet, check again in 100ms
             self.root.after(100, self.check_simulation_results)
     
-    def show_error_dialog(self, error_message):
-        logging.info("Showing error dialog")
-        error_window = ctk.CTkToplevel(self.root)
-        error_window.title("Simulation Error")
-        error_window.geometry("400x200")
-        
-        error_label = ctk.CTkLabel(
-            error_window,
-            text=f"An error occurred during simulation:\n\n{error_message}",
-            wraplength=350
-        )
-        error_label.pack(pady=20, padx=20)
-        
-        ok_button = ctk.CTkButton(
-            error_window,
-            text="OK",
-            command=error_window.destroy
-        )
-        ok_button.pack(pady=20)
-    
     def show_simulation_results(self):
-        results_window = ctk.CTkToplevel(self.root)
-        results_window.title("Simulation Results")
-        results_window.geometry("1400x900")
-        
-        # Create main container
-        container = ctk.CTkFrame(results_window)
-        container.pack(fill="both", expand=True, padx=20, pady=20)
-        
-        # Title
-        title = ctk.CTkLabel(
-            container,
-            text="🎮 AI Performance Analysis",
-            font=ctk.CTkFont(size=28, weight="bold")
-        )
-        title.pack(pady=(0, 30))
-        
-        # Create matplotlib figure with custom style
-        plt.style.use('dark_background')
-        fig = plt.figure(figsize=(14, 10))
-        fig.patch.set_facecolor('#1E1E1E')  # Slightly lighter than black
-        
-        # Custom colors
-        colors = ['#3498db', '#2ecc71', '#e74c3c', '#f1c40f', '#9b59b6', 
-                 '#1abc9c', '#e67e22', '#34495e', '#7f8c8d', '#c0392b']
-        
-        # Performance Comparison (Bar Chart)
-        ax1 = plt.subplot2grid((2, 1), (0, 0))
-        ax1.set_facecolor('#1E1E1E')
-        
-        # Clean up algorithm names (remove emojis)
-        algorithms = list(self.simulation_results.keys())
-        clean_names = [name.split(' ', 1)[1] for name in algorithms]  # Remove emoji prefix
-        
-        avg_scores = [self.simulation_results[algo]['avg'] for algo in algorithms]
-        max_scores = [self.simulation_results[algo]['max'] for algo in algorithms]
-        
-        x = np.arange(len(clean_names))
-        width = 0.35
-        
-        # Create bars with custom styling
-        bars1 = ax1.bar(x - width/2, avg_scores, width, label='Average Score', 
-                       color='#3498db', alpha=0.8)
-        bars2 = ax1.bar(x + width/2, max_scores, width, label='Max Score',
-                       color='#2ecc71', alpha=0.8)
-        
-        # Add value labels on top of bars
-        def autolabel(bars):
-            for bar in bars:
-                height = bar.get_height()
-                ax1.annotate(f'{int(height)}',
-                           xy=(bar.get_x() + bar.get_width() / 2, height),
-                           xytext=(0, 3),
-                           textcoords="offset points",
-                           ha='center', va='bottom',
-                           color='white', fontsize=8)
-        
-        autolabel(bars1)
-        autolabel(bars2)
-        
-        # Customize first subplot
-        ax1.set_title('Performance Comparison', color='white', pad=20, fontsize=16)
-        ax1.set_xticks(x)
-        ax1.set_xticklabels(clean_names, rotation=45, ha='right')
-        # Move legend outside of the plot area
-        ax1.legend(bbox_to_anchor=(1.02, 1), loc='upper left', framealpha=0.8)
-        ax1.grid(True, alpha=0.2)
-        ax1.spines['top'].set_visible(False)
-        ax1.spines['right'].set_visible(False)
-        
-        # Algorithm Rankings (Bottom Plot)
-        ax2 = plt.subplot2grid((2, 1), (1, 0))
-        ax2.set_facecolor('#1E1E1E')
-        
-        # Calculate algorithm scores
-        algorithm_scores = []
-        for algo in algorithms:
-            data = self.simulation_results[algo]
-            avg_score = data['avg']
-            max_score = data['max']
-            consistency = 1 - (np.std(data['scores']) / max_score)  # Normalized consistency
-            
-            # Calculate overall score (weighted average of metrics)
-            overall_score = (
-                0.4 * (avg_score / max(avg_scores)) +  # Normalized average score (40% weight)
-                0.4 * (max_score / max(max_scores)) +  # Normalized max score (40% weight)
-                0.2 * consistency                      # Consistency score (20% weight)
-            ) * 100  # Convert to percentage
-            
-            algorithm_scores.append({
-                'name': clean_names[algorithms.index(algo)],
-                'score': overall_score,
-                'avg_score': avg_score,
-                'max_score': max_score,
-                'consistency': consistency * 100
-            })
-        
-        # Sort algorithms by overall score
-        algorithm_scores.sort(key=lambda x: x['score'], reverse=True)
-        
-        # Create ranking visualization
-        names = [score['name'] for score in algorithm_scores]
-        scores = [score['score'] for score in algorithm_scores]
-        
-        # Create horizontal bars for rankings
-        bars = ax2.barh(np.arange(len(names)), scores, 
-                       color=[colors[i % len(colors)] for i in range(len(names))],
-                       alpha=0.8)
-        
-        # Add score labels
-        for i, bar in enumerate(bars):
-            width = bar.get_width()
-            ax2.text(width + 1, bar.get_y() + bar.get_height()/2,
-                    f'{scores[i]:.1f}%',
-                    va='center', color='white')
-        
-        # Customize ranking subplot
-        ax2.set_title('Algorithm Rankings', color='white', pad=20, fontsize=16)
-        ax2.set_yticks(np.arange(len(names)))
-        ax2.set_yticklabels(names)
-        ax2.set_xlim(0, 105)  # Leave room for percentage labels
-        ax2.grid(True, alpha=0.2)
-        ax2.spines['top'].set_visible(False)
-        ax2.spines['right'].set_visible(False)
-        
-        # Add ranking criteria explanation
-        criteria_text = "Ranking Criteria:\n" + \
-                       "• 40% Average Score\n" + \
-                       "• 40% Max Score\n" + \
-                       "• 20% Consistency"
-        
-        props = dict(boxstyle='round', facecolor='#2C3E50', alpha=0.8)
-        ax2.text(1.02, 0.02, criteria_text,
-                transform=ax2.transAxes,
-                fontsize=10,
-                verticalalignment='bottom',
-                bbox=props)
-        
-        # Adjust layout
-        plt.tight_layout()
-        
-        # Embed plot
-        canvas = FigureCanvasTkAgg(fig, master=container)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill="both", expand=True, pady=(0, 20))
-        
-        # Save results button
-        save_button = ctk.CTkButton(
-            container,
-            text="💾 Save Results",
-            font=ctk.CTkFont(size=14),
-            command=lambda: self.save_simulation_results(),
-            width=150,
-            height=35
-        )
-        save_button.pack(pady=10)
+        SimulationResults(self.root, self.simulation_results)
     
-    def save_simulation_results(self):
-        # Create results directory if it doesn't exist
-        if not os.path.exists('simulation_results'):
-            os.makedirs('simulation_results')
-        
-        # Generate filename with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"simulation_results/snake_simulation_{timestamp}.json"
-        
-        # Save results
-        with open(filename, 'w') as f:
-            json.dump(self.simulation_results, f, indent=4)
+    def enable_buttons(self):
+        """Re-enable buttons after training/simulation"""
+        self.game_button.configure(state="normal")
+        self.train_button.configure(state="normal")
     
+    # Main Run Method
     def run(self):
         # Center the window
         self.root.update_idletasks()
@@ -922,69 +419,3 @@ class GameLauncher:
         self.root.geometry(f'{width}x{height}+{x}+{y}')
         
         self.root.mainloop()
-
-    def create_progress_window(self, total_generations):
-        """Create a progress window for training"""
-        class TrainingProgress(ctk.CTkToplevel):
-            def __init__(self, parent, total):
-                super().__init__(parent)
-                self.title("Training Progress")
-                self.geometry("400x150")
-                
-                # Center window
-                self.update_idletasks()
-                width = self.winfo_width()
-                height = self.winfo_height()
-                x = (self.winfo_screenwidth() // 2) - (width // 2)
-                y = (self.winfo_screenheight() // 2) - (height // 2)
-                self.geometry(f'{width}x{height}+{x}+{y}')
-                
-                self.total = total
-                
-                # Progress label
-                self.label = ctk.CTkLabel(
-                    self,
-                    text="Training Generation 0/%d..." % total,
-                    font=ctk.CTkFont(size=14)
-                )
-                self.label.pack(pady=20)
-                
-                # Progress bar
-                self.progress_bar = ctk.CTkProgressBar(self)
-                self.progress_bar.pack(pady=20, padx=20, fill="x")
-                self.progress_bar.set(0)
-            
-            def update_progress(self, progress):
-                """Update progress bar and label"""
-                self.progress_bar.set(progress / 100)
-                generation = int((progress / 100) * self.total)
-                self.label.configure(text=f"Training Generation {generation}/{self.total}...")
-                self.update()
-        
-        return TrainingProgress(self.root, total_generations)
-
-    def enable_buttons(self):
-        """Re-enable buttons after training/simulation"""
-        self.game_button.configure(state="normal")
-        self.train_button.configure(state="normal")
-
-class SimulationProgress(ctk.CTkToplevel):
-    def __init__(self, parent, total_sims):
-        super().__init__(parent)
-        self.title("Simulation Progress")
-        self.geometry("300x150")
-        
-        self.label = ctk.CTkLabel(
-            self,
-            text="Running simulations...",
-            font=ctk.CTkFont(size=14)
-        )
-        self.label.pack(pady=20)
-        
-        self.progress_bar = ctk.CTkProgressBar(self)
-        self.progress_bar.pack(pady=20, padx=20, fill="x")
-        self.progress_bar.set(0)
-    
-    def update_progress(self, progress):
-        self.progress_bar.set(progress / 100)
-        self.update()
