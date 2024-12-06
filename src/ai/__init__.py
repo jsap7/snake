@@ -10,6 +10,7 @@ from .smart_hybrid import SmartHybridAI
 from .wall_follower import WallFollowerAI
 from .genetic import GeneticAI
 from .perfect_ai import PerfectAI
+from .reverse_astar import ReverseAStarAI
 
 AI_ALGORITHMS = {
     "astar": AStarAI,
@@ -23,5 +24,6 @@ AI_ALGORITHMS = {
     "smart_hybrid": SmartHybridAI,
     "wall_follower": WallFollowerAI,
     "genetic": GeneticAI,
-    "perfect": PerfectAI
+    "perfect": PerfectAI,
+    "reverse_astar": ReverseAStarAI
 }

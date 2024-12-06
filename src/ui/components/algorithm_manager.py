@@ -21,6 +21,7 @@ class AlgorithmManager:
             ("🎮 Smart Hybrid", "smart_hybrid", "Combines A* and Wall Following adaptively"),
             ("🧬 Genetic Algorithm", "genetic", "Evolves behavior through generations"),
             ("🌟 Perfect AI", "perfect", "Combines A* with Hamiltonian cycle and safe shortcuts"),
+            ("🔄 Reverse A*", "reverse_astar", "Finds longest valid path to food"),
         ]
         
         self.algorithms_scroll = None
