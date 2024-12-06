@@ -1,0 +1,10 @@
+{
+    "weights": {
+        "food_distance": -0.020835507978741008,
+        "wall_distance": -0.8748804260637604,
+        "tail_distance": -0.3284647689316853,
+        "space_freedom": 0.03473526440119379
+    },
+    "fitness": 4668,
+    "generation": 20
+}
