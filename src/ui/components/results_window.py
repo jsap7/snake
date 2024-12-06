@@ -83,18 +83,28 @@ class SimulationResults(ctk.CTkToplevel):
     def _plot_algorithm_rankings(self, ax):
         ax.set_facecolor('#1E1E1E')
         
+        # Find global maximum score for fair comparison
+        global_max_score = max(
+            max(data['scores'])
+            for data in self.results.values()
+        )
+        
         # Calculate algorithm scores
         algorithm_scores = []
         for algo in self.results.keys():
             data = self.results[algo]
             avg_score = data['avg']
             max_score = data['max']
-            consistency = 1 - (np.std(data['scores']) / max_score)
             
+            # Calculate consistency based on coefficient of variation
+            cv = data['std'] / (avg_score if avg_score > 0 else 1)
+            consistency = 1 - min(cv, 1)  # Cap at 1 to prevent negative scores
+            
+            # Calculate overall score using global maximum
             overall_score = (
-                0.4 * (avg_score / max(data['scores'])) +
-                0.4 * (max_score / max(data['scores'])) +
-                0.2 * consistency
+                0.5 * (avg_score / global_max_score) +  # Increased weight on actual performance
+                0.3 * (max_score / global_max_score) +  # Slightly reduced weight on max score
+                0.2 * consistency                       # Keep consistency weight
             ) * 100
             
             algorithm_scores.append({
@@ -132,8 +142,8 @@ class SimulationResults(ctk.CTkToplevel):
         ax.spines['right'].set_visible(False)
         
         criteria_text = "Ranking Criteria:\n" + \
-                       "• 40% Average Score\n" + \
-                       "• 40% Max Score\n" + \
+                       "• 50% Average Score\n" + \
+                       "• 30% Max Score\n" + \
                        "• 20% Consistency"
         
         props = dict(boxstyle='round', facecolor='#2C3E50', alpha=0.8)

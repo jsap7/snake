@@ -32,8 +32,9 @@ class SimulationManager:
                         game = Game(
                             start_with_ai=True,
                             ai_algorithm=algo_id,
-                            speed=30,
-                            headless=True
+                            speed=10,
+                            headless=True,
+                            max_steps_multiplier=3
                         )
                         score = game.run_headless()
                         scores.append(score)
@@ -52,7 +53,8 @@ class SimulationManager:
                     self.simulation_results[algo_name] = {
                         'scores': scores,
                         'avg': np.mean(scores),
-                        'max': np.max(scores)
+                        'max': np.max(scores),
+                        'std': np.std(scores)
                     }
                     logging.info(f"Results for {algo_id}: Avg={np.mean(scores):.2f}, Max={np.max(scores)}")
             
