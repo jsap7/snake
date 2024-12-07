@@ -17,8 +17,8 @@ class AlgorithmManager:
             ("💡 Greedy Best-First", "greedy", "Always moves towards food"),
             ("🧭 Dijkstra", "dijkstra", "Finds shortest path by exploring all directions"),
             ("🧠 Smart Hybrid", "smart_hybrid", "Combines A* and Wall Following adaptively"),
-            ("🔬 Perfect AI", "perfect", "Combines A* with Hamiltonian cycle and safe shortcuts"),
-            ("🔙 Reverse A*", "reverse_astar", "Finds longest valid path to food"),
+            ("🔬 Reverse A*", "reverse_astar", "Finds longest valid path to food"),
+            ("🌟 Smarter Hybrid", "smarter_hybrid", "Enhanced hybrid combining A*, Hamiltonian, and advanced path analysis"),
         ]
         
         self.algorithms_scroll = None

@@ -5,6 +5,10 @@ import traceback
 from src.game.game import Game
 import os
 
+# At the top of the file with other constants, add or update these color definitions
+BACKGROUND_COLOR = (15, 15, 15)  # Very dark grey, almost black
+GRID_COLOR = (25, 25, 25)  # Slightly lighter than background for subtle grid lines
+
 class SimulationManager:
     def __init__(self, root, algorithms, num_simulations):
         self.root = root
