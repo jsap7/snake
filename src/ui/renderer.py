@@ -13,11 +13,21 @@ class Renderer:
     def __init__(self, screen, color_scheme="blue"):
         self.screen = screen
         pygame.font.init()
-        self.score_font = pygame.font.Font(None, 36)
+        
+        # Use more aesthetic fonts
+        try:
+            # Try to use Helvetica Neue or Arial for a clean, modern look
+            self.score_font = pygame.font.SysFont("Helvetica Neue", 48, bold=True)
+            self.ai_font = pygame.font.SysFont("Helvetica Neue", 36)
+        except:
+            # Fallback to Arial if Helvetica Neue isn't available
+            self.score_font = pygame.font.SysFont("Arial", 48, bold=True)
+            self.ai_font = pygame.font.SysFont("Arial", 36)
+        
         self.title_font = pygame.font.Font(None, 100)
         self.game_over_font = pygame.font.Font(None, 74)
         self.info_font = pygame.font.Font(None, 36)
-        self.color_scheme = SNAKE_COLOR_SCHEMES[color_scheme]  # Store the selected color scheme
+        self.color_scheme = SNAKE_COLOR_SCHEMES[color_scheme]
         
         # Path visualization colors
         self.PATH_DOT = (147, 112, 219, 128)  # Semi-transparent purple
@@ -185,16 +195,30 @@ class Renderer:
             self.screen.blit(path_surface, (x, y))
     
     def draw_score(self, score, is_ai_mode=False, ai_name=None):
-        # Draw score
-        score_text = self.score_font.render(f'Score: {score}', True, SCORE_COLOR)
-        score_rect = score_text.get_rect(topleft=(10, 10))
-        self.screen.blit(score_text, score_rect)
+        # Draw score with a subtle shadow effect
+        score_text = f'Score: {score}'
+        
+        # Draw shadow
+        shadow_surface = self.score_font.render(score_text, True, (30, 30, 30))
+        shadow_rect = shadow_surface.get_rect(topleft=(12, 12))
+        self.screen.blit(shadow_surface, shadow_rect)
+        
+        # Draw main text
+        score_surface = self.score_font.render(score_text, True, SCORE_COLOR)
+        score_rect = score_surface.get_rect(topleft=(10, 10))
+        self.screen.blit(score_surface, score_rect)
         
         # Draw AI mode indicator if active
         if is_ai_mode and ai_name:
-            ai_text = self.score_font.render(f'AI: {ai_name}', True, START_TEXT_COLOR)
-            ai_rect = ai_text.get_rect(topright=(WINDOW_SIZE - 10, 10))
-            self.screen.blit(ai_text, ai_rect)
+            # Draw shadow
+            ai_shadow = self.ai_font.render(f'AI: {ai_name}', True, (30, 30, 30))
+            ai_shadow_rect = ai_shadow.get_rect(topright=(WINDOW_SIZE - 8, 12))
+            self.screen.blit(ai_shadow, ai_shadow_rect)
+            
+            # Draw main text
+            ai_surface = self.ai_font.render(f'AI: {ai_name}', True, START_TEXT_COLOR)
+            ai_rect = ai_surface.get_rect(topright=(WINDOW_SIZE - 10, 10))
+            self.screen.blit(ai_surface, ai_rect)
     
     def draw_game_over(self):
         overlay = pygame.Surface((WINDOW_SIZE, WINDOW_SIZE))
