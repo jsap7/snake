@@ -11,8 +11,8 @@ FPS = 10
 FOOD_SIZE_FACTOR = 0.4
 
 # Colors
-BACKGROUND = (40, 44, 52)
-GRID_COLOR = (70, 74, 82)
+BACKGROUND = (15, 15, 15)  # Very dark grey, almost black
+GRID_COLOR = (25, 25, 25)  # Slightly lighter than background for subtle grid lines
 SNAKE_HEAD = (135, 206, 250)
 SNAKE_BODY_BASE = (30, 144, 255)
 SNAKE_OUTLINE = (30, 34, 42)
