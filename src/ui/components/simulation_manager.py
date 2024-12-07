@@ -4,16 +4,18 @@ import queue
 import traceback
 from src.game.game import Game
 import os
+import tkinter as tk
 
 # At the top of the file with other constants, add or update these color definitions
 BACKGROUND_COLOR = (15, 15, 15)  # Very dark grey, almost black
 GRID_COLOR = (25, 25, 25)  # Slightly lighter than background for subtle grid lines
 
 class SimulationManager:
-    def __init__(self, root, algorithms, num_simulations):
-        self.root = root
-        self.algorithms = algorithms
-        self.num_simulations = num_simulations
+    def __init__(self, parent):
+        self.window = tk.Toplevel(parent)
+        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.algorithms = []
+        self.num_simulations = 0
         self.result_queue = queue.Queue()
         self.simulation_results = {}
     
@@ -110,3 +112,7 @@ class SimulationManager:
             # Ensure we show progress even on error
             progress_callback(100)
             return ("error", str(e)) 
+
+    def on_closing(self):
+        # Clean up any running processes if needed
+        self.window.destroy()

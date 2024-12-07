@@ -59,6 +59,8 @@ class InputHandler:
                     snake.set_direction("LEFT")
                 elif event.key == pygame.K_RIGHT:
                     snake.set_direction("RIGHT")
+                elif event.key == pygame.K_c:
+                    self.renderer.cycle_snake_color()
         elif self.control_type == "ai" and self.current_ai:
             # Get the next move from AI with proper parameters
             direction = self.current_ai.get_next_move(

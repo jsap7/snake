@@ -3,8 +3,9 @@ from tkinter import ttk
 import time
 
 class GameStats:
-    def __init__(self, algorithm_name=None, speed_callback=None, pause_callback=None):
+    def __init__(self, ai_name, speed_callback=None, pause_callback=None):
         self.window = tk.Toplevel()
+        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.window.title("Snake Game Stats")
         self.window.geometry("400x600")
         self.window.resizable(False, False)
@@ -31,7 +32,7 @@ class GameStats:
         # Callbacks
         self.speed_callback = speed_callback
         self.pause_callback = pause_callback
-        self.algorithm_name = algorithm_name
+        self.algorithm_name = ai_name
         
         # Style configuration
         self.style = ttk.Style()
@@ -216,4 +217,8 @@ class GameStats:
             self.pause_button.configure(text="⏸ Pause")
     
     def destroy(self):
+        self.window.destroy()
+    
+    def on_closing(self):
+        # Clean up and destroy window
         self.window.destroy()

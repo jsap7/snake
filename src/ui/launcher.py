@@ -12,6 +12,7 @@ from src.ui.components.dialog_manager import DialogManager
 from src.ui.components.algorithm_manager import AlgorithmManager
 from src.ui.components.training_view import TrainingView
 from src.ui.components.training_progress import TrainingProgress
+from src.utils.settings import SNAKE_COLOR_SCHEMES
 
 # Configure logging
 logging.getLogger('matplotlib.font_manager').disabled = True
@@ -162,6 +163,55 @@ class GameLauncher:
             command=self.update_speed_label
         )
         speed_slider.pack(fill="x", padx=(10, 10))
+        
+        # Game Settings Frame (add this after speed frame)
+        self.settings_frame = ctk.CTkFrame(left_column)
+        self.settings_frame.pack(fill="x", pady=(0, 20))
+        
+        settings_label = ctk.CTkLabel(
+            self.settings_frame,
+            text="Game Settings",
+            font=ctk.CTkFont(size=16, weight="bold")
+        )
+        settings_label.pack(pady=(10, 5))
+        
+        # Color Selection Frame
+        color_frame = ctk.CTkFrame(self.settings_frame)
+        color_frame.pack(fill="x", padx=20, pady=10)
+        
+        color_label = ctk.CTkLabel(
+            color_frame,
+            text="Snake Color:",
+            font=ctk.CTkFont(size=14)
+        )
+        color_label.pack(side="left", padx=10)
+        
+        # Initialize color variable
+        self.color_var = ctk.StringVar(value="blue")
+        
+        # Create color dropdown
+        color_menu = ctk.CTkOptionMenu(
+            color_frame,
+            values=list(SNAKE_COLOR_SCHEMES.keys()),
+            variable=self.color_var,
+            width=120
+        )
+        color_menu.pack(side="left", padx=10)
+        
+        # Color Preview Frame
+        preview_frame = ctk.CTkFrame(color_frame, width=30, height=30)
+        preview_frame.pack(side="right", padx=10)
+        
+        # Function to update preview color
+        def update_preview(*args):
+            scheme = SNAKE_COLOR_SCHEMES[self.color_var.get()]
+            preview_frame.configure(fg_color=self.rgb_to_hex(scheme['head']))
+        
+        # Bind color change to preview update
+        self.color_var.trace_add("write", update_preview)
+        
+        # Initial preview update
+        update_preview()
         
         # Simulation Settings Frame
         self.sim_frame = ctk.CTkFrame(left_column)
@@ -316,14 +366,18 @@ class GameLauncher:
     
     # Game Control Methods
     def start_game(self):
-        self.root.withdraw()
-        game = Game(
-            start_with_ai=self.control_mode.get() == "ai",
-            ai_algorithm=self.algorithm.get(),
-            speed=self.speed.get()
-        )
-        game.run()
-        self.root.deiconify()
+        self.root.withdraw()  # Hide launcher window
+        try:
+            game = Game(
+                start_with_ai=self.control_mode.get() == "ai",
+                ai_algorithm=self.algorithm.get(),
+                speed=self.speed.get(),
+                color_scheme=self.color_var.get()
+            )
+            game.run()
+        finally:
+            # Always show launcher window again, regardless of how game ends
+            self.root.deiconify()
     
     def start_simulation(self):
         logging.info("Starting simulation process")
@@ -419,3 +473,7 @@ class GameLauncher:
         self.root.geometry(f'{width}x{height}+{x}+{y}')
         
         self.root.mainloop()
+    
+    def rgb_to_hex(self, rgb):
+        """Convert RGB tuple to hex color string"""
+        return f'#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}'

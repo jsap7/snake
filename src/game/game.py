@@ -14,7 +14,7 @@ import os
 import random
 
 class Game:
-    def __init__(self, start_with_ai=False, ai_algorithm="astar", speed=10, headless=False, genetic_individual=None, max_steps_multiplier=1):
+    def __init__(self, start_with_ai=False, ai_algorithm="astar", speed=10, headless=False, genetic_individual=None, max_steps_multiplier=1, color_scheme="blue"):
         # Set SDL to use dummy video driver for headless mode
         if headless:
             os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -30,7 +30,7 @@ class Game:
             self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
             pygame.display.set_caption("Snake Game")
             self.clock = pygame.time.Clock()
-            self.renderer = Renderer(self.screen)
+            self.renderer = Renderer(self.screen, color_scheme)
         else:
             # Create a dummy surface for headless mode
             self.screen = pygame.Surface((WINDOW_SIZE, WINDOW_SIZE))
@@ -79,12 +79,14 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.is_running = False
-                return
+                pygame.quit()
+                return "quit"  # Return status to indicate clean quit
             
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.is_running = False
-                    return
+                    pygame.quit()
+                    return "quit"  # Return status for ESC key quit
                 
                 if not self.is_playing:
                     if event.key == pygame.K_SPACE:
@@ -135,7 +137,9 @@ class Game:
 
     def run(self):
         while self.is_running:
-            self.handle_events()
+            status = self.handle_events()
+            if status == "quit":
+                return  # Return to launcher cleanly
             
             if not self.is_playing:
                 self.renderer.draw_start_screen()
@@ -152,11 +156,8 @@ class Game:
                 current_path=self.input_handler.get_current_path()
             )
             
-            # Maintain smooth rendering
             pygame.display.flip()
-            self.clock.tick(60)  # Cap at 60 FPS for smooth rendering
-        
-        pygame.quit() 
+            self.clock.tick(60)
 
     def run_headless(self):
         """Run the game without rendering for simulation purposes"""

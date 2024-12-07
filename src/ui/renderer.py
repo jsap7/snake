@@ -1,21 +1,23 @@
 import pygame
+import pygame.gfxdraw
 from src.utils.settings import (
     GRID_SIZE, CELL_SIZE, WINDOW_SIZE, CELL_PADDING,
     BACKGROUND, GRID_COLOR, SNAKE_HEAD, SNAKE_BODY_BASE,
     SNAKE_OUTLINE, FOOD_COLOR, FOOD_OUTLINE,
     WHITE, SCORE_COLOR, GAME_OVER_COLOR,
     FOOD_SIZE_FACTOR, TITLE_COLOR, START_TEXT_COLOR,
-    PATH_COLOR
+    PATH_COLOR, SNAKE_COLOR_SCHEMES
 )
 
 class Renderer:
-    def __init__(self, screen):
+    def __init__(self, screen, color_scheme="blue"):
         self.screen = screen
         pygame.font.init()
         self.score_font = pygame.font.Font(None, 36)
         self.title_font = pygame.font.Font(None, 100)
         self.game_over_font = pygame.font.Font(None, 74)
         self.info_font = pygame.font.Font(None, 36)
+        self.color_scheme = SNAKE_COLOR_SCHEMES[color_scheme]  # Store the selected color scheme
         
         # Path visualization colors
         self.PATH_DOT = (147, 112, 219, 128)  # Semi-transparent purple
@@ -39,60 +41,98 @@ class Renderer:
             )
 
     def draw_snake(self, snake):
-        # First pass: draw connecting rectangles between segments
-        for i in range(len(snake.body) - 1):
-            current = snake.body[i]
-            next_segment = snake.body[i + 1]
-            
-            # Calculate center points of segments
-            current_center = (
-                current[0] * CELL_SIZE + CELL_SIZE // 2,
-                current[1] * CELL_SIZE + CELL_SIZE // 2
+        if not snake.body:
+            return
+        
+        # Get current color scheme (using self.color_scheme directly)
+        head_color = self.color_scheme['head']
+        body_color = self.color_scheme['body']
+        
+        # Create points for the snake's body
+        points = []
+        for segment in snake.body:
+            x = segment[0] * CELL_SIZE + CELL_SIZE // 2
+            y = segment[1] * CELL_SIZE + CELL_SIZE // 2
+            points.append((x, y))
+        
+        thickness = CELL_SIZE - (CELL_PADDING * 2)  # Base thickness
+        line_thickness = thickness + 1  # Slightly thicker lines to cover circle edges
+        outline_thickness = thickness + 4  # Thickness for outline
+        
+        # First pass: Draw outline circles
+        for i, pos in enumerate(points):
+            # Draw filled circle and anti-aliased edge for outline
+            pygame.gfxdraw.filled_circle(
+                self.screen,
+                int(pos[0]), int(pos[1]),
+                outline_thickness // 2,
+                SNAKE_OUTLINE
             )
-            next_center = (
-                next_segment[0] * CELL_SIZE + CELL_SIZE // 2,
-                next_segment[1] * CELL_SIZE + CELL_SIZE // 2
+            pygame.gfxdraw.aacircle(
+                self.screen,
+                int(pos[0]), int(pos[1]),
+                outline_thickness // 2,
+                SNAKE_OUTLINE
             )
-            
-            # Calculate color for connector (slightly darker than current segment)
-            darkness = min(i * 1.5, 40)  # Reduced darkness factor for smoother gradient
-            base_color = SNAKE_BODY_BASE
-            r = max(SNAKE_HEAD[0] - darkness, base_color[0])
-            g = max(SNAKE_HEAD[1] - darkness, base_color[1])
-            b = max(SNAKE_HEAD[2] - darkness, base_color[2])
+        
+        # Second pass: Draw outline lines
+        for i in range(max(0, len(points) - 1)):
+            start_pos = points[i]
+            end_pos = points[i + 1]
+            pygame.draw.line(
+                self.screen,
+                SNAKE_OUTLINE,
+                start_pos,
+                end_pos,
+                outline_thickness
+            )
+        
+        # Third pass: Draw circles at each joint with anti-aliasing
+        for i, pos in enumerate(points):
+            # Calculate gradient color from head to body
+            darkness = min(i * 1.5, 40)
+            r = max(head_color[0] - darkness, body_color[0])
+            g = max(head_color[1] - darkness, body_color[1])
+            b = max(head_color[2] - darkness, body_color[2])
             color = (r, g, b)
             
-            # Draw connecting rectangle with same thickness as segments
+            # Use head color for first segment
+            if i == 0:
+                color = head_color
+            
+            # Draw filled circle and anti-aliased edge
+            pygame.gfxdraw.filled_circle(
+                self.screen,
+                int(pos[0]), int(pos[1]),
+                thickness // 2,
+                color
+            )
+            pygame.gfxdraw.aacircle(
+                self.screen,
+                int(pos[0]), int(pos[1]),
+                thickness // 2,
+                color
+            )
+        
+        # Fourth pass: Draw the connecting lines on top
+        for i in range(max(0, len(points) - 1)):
+            start_pos = points[i]
+            end_pos = points[i + 1]
+            
+            # Calculate gradient color
+            darkness = min(i * 1.5, 40)
+            r = max(head_color[0] - darkness, body_color[0])
+            g = max(head_color[1] - darkness, body_color[1])
+            b = max(head_color[2] - darkness, body_color[2])
+            color = (r, g, b)
+            
+            # Draw line segment
             pygame.draw.line(
                 self.screen,
                 color,
-                current_center,
-                next_center,
-                CELL_SIZE - (2 * CELL_PADDING)
-            )
-        
-        # Second pass: draw segments on top with smoother gradient
-        for i, segment in enumerate(snake.body):
-            x = segment[0] * CELL_SIZE + CELL_PADDING
-            y = segment[1] * CELL_SIZE + CELL_PADDING
-            segment_size = CELL_SIZE - (2 * CELL_PADDING)
-            
-            if i == 0:  # Head
-                color = SNAKE_HEAD
-            else:
-                # Calculate darker shade based on position (smoother gradient)
-                darkness = min(i * 2, 40)  # Reduced darkness factor for smoother gradient
-                r = max(SNAKE_HEAD[0] - darkness, SNAKE_BODY_BASE[0])
-                g = max(SNAKE_HEAD[1] - darkness, SNAKE_BODY_BASE[1])
-                b = max(SNAKE_HEAD[2] - darkness, SNAKE_BODY_BASE[2])
-                color = (r, g, b)
-            
-            # Draw segment with rounded corners
-            pygame.draw.rect(
-                self.screen,
-                color,
-                (x, y, segment_size, segment_size),
-                border_radius=8
+                start_pos,
+                end_pos,
+                line_thickness
             )
     
     def draw_food(self, food):
@@ -100,10 +140,33 @@ class Renderer:
         center_x = food.position[0] * CELL_SIZE + CELL_SIZE // 2
         center_y = food.position[1] * CELL_SIZE + CELL_SIZE // 2
         
-        pygame.draw.circle(self.screen, FOOD_OUTLINE, 
-                         (center_x, center_y), food_size // 2 + 1)
-        pygame.draw.circle(self.screen, FOOD_COLOR, 
-                         (center_x, center_y), food_size // 2)
+        # Draw outline with anti-aliasing
+        pygame.gfxdraw.filled_circle(
+            self.screen,
+            center_x, center_y,
+            food_size // 2 + 1,
+            FOOD_OUTLINE
+        )
+        pygame.gfxdraw.aacircle(
+            self.screen,
+            center_x, center_y,
+            food_size // 2 + 1,
+            FOOD_OUTLINE
+        )
+        
+        # Draw inner circle with anti-aliasing
+        pygame.gfxdraw.filled_circle(
+            self.screen,
+            center_x, center_y,
+            food_size // 2,
+            FOOD_COLOR
+        )
+        pygame.gfxdraw.aacircle(
+            self.screen,
+            center_x, center_y,
+            food_size // 2,
+            FOOD_COLOR
+        )
     
     def draw_path(self, path):
         if not path:
