@@ -20,10 +20,10 @@ FOOD_COLOR = (244, 67, 54)
 FOOD_OUTLINE = (211, 47, 47)
 PATH_COLOR = (120, 30, 140)
 WHITE = (255, 255, 255)
-SCORE_COLOR = (124, 77, 187)  # #7c4dbb
+SCORE_COLOR = (180, 124, 253)  # #B47CFD
 GAME_OVER_COLOR = (224, 108, 117)
 TITLE_COLOR = (152, 195, 121)
-START_TEXT_COLOR = (171, 178, 191)
+START_TEXT_COLOR = (255, 255, 255)
 
 # Game settings
 INITIAL_DIRECTION = (1, 0)
@@ -36,7 +36,7 @@ SNAKE_COLOR_SCHEMES = {
         'body': (30, 144, 255)    # Darker blue
     },
     'purple': {
-        'head': (221, 160, 221),  # Plum/pastel purple
+        'head': (197, 150, 221),  # Pastel version of SCORE_COLOR
         'body': (128, 0, 128)     # Dark purple
     },
     'green': {
